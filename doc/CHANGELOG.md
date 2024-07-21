@@ -1,6 +1,21 @@
-## v3.0.38.(待发布)
+## v3.0.41.(待发布)
 
-- 
+- 格式化代码
+- 加速merge_db合并速度
+- 加快wxinfo获取，速度提升10%
+- UPDATE CHANGELOG.md
+- 加快运行速度，但是可能不支持win32
+- 加快wxinfo获取，速度再次提升40%
+- 加快wxinfo获取，提速30% 感谢【鱼先生啊】
+
+## v3.0.40
+
+- fix
+- fix 图片读取错误
+- 加速实时消息处理速度
+- UPDATE CHANGELOG.md
+- fix real time msg 中文路径报错
+- fix LastReadedCreateTime 容错
 
 ## v3.0.37
 

@@ -419,7 +419,9 @@ def get_img(img_path):
     img_tmp_path = AttachmentContext.join(g.tmp_path, my_wxid, "img")
     original_img_path = AttachmentContext.join(wx_path, img_path)
     if AttachmentContext.exists(original_img_path):
-        fomt, md5, out_bytes = dat2img(original_img_path)
+        rc, fomt, md5, out_bytes = dat2img(original_img_path)
+        if not rc:
+            return ReJson(1001, body=original_img_path)
         imgsavepath = AttachmentContext.join(img_tmp_path, img_path + "_" + ".".join([md5, fomt]))
         if not AttachmentContext.exists(AttachmentContext.dirname(imgsavepath)):
             AttachmentContext.makedirs(AttachmentContext.dirname(imgsavepath))
