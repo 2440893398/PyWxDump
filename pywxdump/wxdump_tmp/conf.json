@@ -1,0 +1,20 @@
+{
+    "test": {
+        "merge_path": "s3://*********-1256220500/*********/merge_all.db",
+        "wx_path": "s3://*********-1256220500/*********",
+        "my_wxid": "test",
+        "oss_config": "{\"oss_type_key\": \"s3\", \"access_key\": \"AKIDaAjA*********I1kR4gFdv67v\", \"secret_key\": \"wlT2ldSBk*********Qh4fEev47\", \"endpoint_url\": \"https://cos.ap-nanjing.myqcloud.com\"}",
+        "last": "wxid_rbdv29hm552s22"
+    },
+    "wxid_fhded1nyrrdr22": {
+        "merge_path": "s3://wechatmsg-1256220500/wxid_fhded1nyrrdr22/merge_all.db",
+        "wx_path": "s3://wechatmsg-1256220500/wxid_fhded1nyrrdr22/FileStorage",
+        "my_wxid": "wxid_fhded1nyrrdr22",
+        "oss_config": "{\"oss_type_key\": \"s3\", \"access_key\": \"AKIDaAjAh5JZmuwupiaTKAxfI1kR4gFdv67v\", \"secret_key\": \"wlT2ldSBkQBsXCh077va9e4Qh4fEev47\", \"endpoint_url\": \"https://cos.ap-nanjing.myqcloud.com\"}"
+    },
+    "wxid_rbdv29hm552s22": {
+        "merge_path": "C:/Users/24408/AppData/Local/Temp/wechat_decrypted_files/merge_all.db",
+        "wx_path": "C:/Users/24408/Documents/WeChat Files/wxid_rbdv29hm552s22",
+        "my_wxid": "wxid_rbdv29hm552s22"
+    }
+}

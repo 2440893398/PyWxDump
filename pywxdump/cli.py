@@ -433,4 +433,9 @@ def console_run():
 
 
 if __name__ == '__main__':
+    sys.argv = ['mode', 'dbshow',
+                '-merge', 'C:\\Users\\24408\\IdeaProjects\\PyWxDump\\pywxdump\\wxdump_tmp\\wxid_fhded1nyrrdr22\\merge_all.db',
+                '-wid', 'C:\\Users\\24408\\Documents\\WeChat Files\\wxid_fhded1nyrrdr22',
+                '-myid', 'wxid_fhded1nyrrdr22',
+                '--online']
     console_run()

@@ -9,9 +9,12 @@ import logging
 import time
 import shutil
 import sys
+import traceback
 
 from pywxdump.common.config.oss_config.storage_config_factory import StorageConfigFactory
 from pywxdump.common.config.oss_config_manager import OSSConfigManager
+from pywxdump.dbpreprocess.fts.parsingFTS import ParsingFTS
+from pywxdump.dbpreprocess.fts.parsingFTSFactroy import ParsingFTSFactory
 
 pythoncom = __import__('pythoncom') if sys.platform == "win32" else None
 import pywxdump
@@ -19,7 +22,7 @@ from pywxdump.file import AttachmentContext
 
 from flask import Flask, request, render_template, g, Blueprint, send_file, make_response, session
 from pywxdump import get_core_db, all_merge_real_time_db
-from pywxdump.api.rjson import ReJson, RqJson
+from pywxdump.api.rjson import ReJson, RqJson, ok
 from pywxdump.api.utils import read_session, get_session_wxids, save_session, error9999, gen_base64, validate_title, \
     read_session_local_wxid
 from pywxdump import read_info, VERSION_LIST, batch_decrypt, BiasAddr, merge_db, decrypt_merge, merge_real_time_db
@@ -46,7 +49,36 @@ def init_last_local_wxid():
     if local_wxid:
         return ReJson(0, {"local_wxids": local_wxid})
     return ReJson(0, {"local_wxids": []})
+@api.route('/search', methods=['GET'])
+def search():
+    """
+    搜索
+    """
+    try:
+        my_wxid = read_session(g.sf, "test", "last")
+        if not my_wxid: return ReJson(1001, body="my_wxid is required")
+        merge_path = read_session(g.sf, my_wxid, "merge_path")
+        if not my_wxid:
+            return error9999('未登录')
 
+        query = request.args.get('query')
+        if not query:
+            return error9999('参数错误')
+        type = request.args.get('type')
+        result = {}
+        for key, subclass in ParsingFTSFactory.registry.items():
+            logging.info(subclass)
+            ftsSearch = subclass(merge_path)
+            logging.info(ftsSearch)
+            logging.info(ftsSearch.search)
+            search_result = ftsSearch.search(query, request.args.get('page', 1), request.args.get('pagesize', 10))
+            result[key.value] = search_result.dict()
+            if type and type == key.value:
+                return ok(result)
+        return ok(result)
+    except Exception as e:
+        logging.error(f"Error in search function: {str(e)}\n{traceback.format_exc()}")
+        return error9999(str(e))
 
 @api.route('/api/init_last', methods=["GET", 'POST'])
 @error9999

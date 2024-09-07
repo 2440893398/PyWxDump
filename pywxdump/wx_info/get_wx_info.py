@@ -431,7 +431,44 @@ def get_core_db(wx_path: str, db_type: list = None) -> [str]:
     """
     if not os.path.exists(wx_path):
         return False, f"[-] 目录不存在: {wx_path}"
-    db_type_all = ["MSG", "MediaMSG", "MicroMsg", "OpenIMContact", "OpenIMMedia", "OpenIMMsg", "Favorite", "PublicMsg"]
+    db_type_all = [
+        "PublicMsgMedia",
+        "Misc",
+        "MSG",
+        "MediaMSG",
+        "FTSMSG",
+        "Voip",
+        "SyncMsg",
+        "StoreEmotion",
+        "Sns",
+        "PublicMsg",
+        "PreDownload",
+        "OpenIMResource",
+        "OpenIMMsg",
+        "OpenIMMedia",
+        "OpenIMContact",
+        "NewTips",
+        "MultiSearchChatMsg",
+        "MicroMsg",
+        "Media",
+        "LinkHistory",
+        "ImageTranslate",
+        "HardLinkVideo",
+        "HardLinkImage",
+        "HardLinkFile",
+        "FunctionMsg",
+        "FTSFavorite",
+        "FTSContact",
+        "Favorite",
+        "Emotion",
+        "CustomerService",
+        "ClientConfig",
+        "ChatRoomUser",
+        "ChatMsg",
+        "BizChatMsg",
+        "BizChat",
+        "ClientGeneral"
+    ]
 
     if not db_type:
         db_type = db_type_all

@@ -17,7 +17,7 @@ def ReJson(code: int, body: [dict, list] = None, msg: str = None, error: str = N
         0: {'code': 0, 'body': body, 'msg': "success", "extra": extra},
         # 100 开头代表 请求数据有问题
         # 4*** 表示数据库查询结果存在异常
-        1001: {'code': 1001, 'body': body, 'msg': "请求数据格式存在错误！", "extra": extra}, # 请求数据格式存在错误，一般是数据类型错误
+        1001: {'code': 1001, 'body': body, 'msg': "请求数据格式存在错误！", "extra": extra},  # 请求数据格式存在错误，一般是数据类型错误
         1002: {'code': 1002, 'body': body, 'msg': "请求参数存在错误！", "extra": extra},  # 请求参数存在错误,一般是缺少参数
         2001: {'code': 2001, 'body': body, 'msg': "操作失败！", "extra": extra},  # 请求未能正确执行
         4001: {'code': 4001, 'body': body, 'msg': "账号或密码错误！", "extra": extra},  # 表示用户没有权限（令牌、用户名、密码错误）
@@ -39,6 +39,31 @@ def ReJson(code: int, body: [dict, list] = None, msg: str = None, error: str = N
     if error:
         logging.error(error)
     return rjson
+
+
+def ok(body: [dict, list] = None, msg: str = None, extra: dict = None) -> dict:
+    """
+    响应成功
+
+    :param body: 返回的主体内容，一般为具体的数据
+    :param msg: 返回状态码相关的调试信息
+    :param extra: 附加数据，字段、内容不定
+
+    :return: dict 响应数据
+    """
+    return ReJson(0, body, msg, extra)
+
+
+def fail(msg: str = None, extra: dict = None) -> dict:
+    """
+    响应业务异常
+
+    :param msg 异常信息
+    :param extra 附加数据
+
+    :return: dict 响应数据
+    """
+    return ReJson(5002, msg, extra)
 
 
 def RqJson(rqData):

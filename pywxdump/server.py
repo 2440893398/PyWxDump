@@ -9,6 +9,8 @@ import os
 import subprocess
 import sys
 import time
+import logging
+import colorlog
 
 from pywxdump.common.config.oss_config.s3_config import S3Config
 from pywxdump.common.config.server_config import ServerConfig
@@ -16,7 +18,7 @@ from pywxdump.common.config.server_config import ServerConfig
 
 def start_falsk(server_config: ServerConfig):
     """
-    启动flask
+    启动     
     :param merge_path:  合并后的数据库路径
     :param wx_path:  微信文件夹的路径（用于显示图片）
     :param key:  密钥
@@ -114,21 +116,55 @@ def start_falsk(server_config: ServerConfig):
         app.run(host=host, port=server_config.port, debug=server_config.debug)
 
 
+def get_logger(level=logging.INFO):
+    """
+    获取logger对象 https://www.cnblogs.com/Flat-White/p/17255337.html
+    :param level: 日志级别
+    :return: logger对象
+    """
+    # 创建logger对象
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    # 创建控制台日志处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    # 定义颜色输出格式
+    color_formatter = colorlog.ColoredFormatter(
+        '%(log_color)s%(levelname)s: %(message)s',
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white',
+        }
+    )
+    # 将颜色输出格式添加到控制台日志处理器
+    console_handler.setFormatter(color_formatter)
+    # 移除默认的handler
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+    # 将控制台日志处理器添加到logger对象
+    logger.addHandler(console_handler)
+    return logger
+
+
 if __name__ == '__main__':
+    logger = get_logger()
     merge_path = r"****.db"
 
     wx_path = r"****"
     my_wxid = "****"
     server_config = ServerConfig.builder()
-    server_config.merge_path("s3://*********-1256220500/*********/merge_all.db")
-    server_config.wx_path("s3://*********-1256220500/*********")
-    server_config.my_wxid("test")
-    server_config.port(9000)
+    server_config.merge_path("C:/Users/24408/AppData/Local/Temp/wechat_decrypted_files/merge_all.db")
+    server_config.wx_path("C:/Users/24408/Documents/WeChat Files/wxid_rbdv29hm552s22")
+    server_config.my_wxid("wxid_rbdv29hm552s22")
+    server_config.port(5000)
     server_config.online(True)
     server_config.is_open_browser(False)
-
-    s3Config = S3Config("AKIDaAjA*********I1kR4gFdv67v", "wlT2ldSBk*********Qh4fEev47",
-                        "https://cos.ap-nanjing.myqcloud.com")
-    server_config.oss_config(s3Config)
+    #
+    # s3Config = S3Config("AKIDaAjAh5JZmuwupiaTKAxfI1kR4gFdv67v", "wlT2ldSBkQBsXCh077va9e4Qh4fEev47",
+    #                     "https://cos.ap-nanjing.myqcloud.com")
+    # server_config.oss_config(s3Config)
     start_falsk(server_config.build())
 

@@ -8,6 +8,7 @@
 import os
 import re
 import hmac
+import sys
 import traceback
 import hashlib
 if sys.platform == "win32":
