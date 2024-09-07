@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-#
 # -------------------------------------------------------------------------------
-# Name:         __init__.py
+# Name:         _loger.py
 # Description:  
 # Author:       xaoyaoo
-# Date:         2024/04/20
+# Date:         2024/07/23
 # -------------------------------------------------------------------------------
+import logging
 
-
-if __name__ == '__main__':
-    pass
+db_loger = logging.getLogger("db_prepare")

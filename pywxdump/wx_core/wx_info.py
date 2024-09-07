@@ -11,10 +11,10 @@ import os
 import re
 import winreg
 from typing import List, Union
-from .utils import  verify_key, get_exe_version, get_exe_bit, info_error
-from .ctypes_utils import get_process_list, get_info_with_key, get_memory_maps, get_process_exe_path, \
-    get_file_version_info
-from .memory_search import search_memory
+from .utils import verify_key, get_exe_bit, wx_core_error
+from .utils import get_process_list, get_memory_maps, get_process_exe_path, get_file_version_info
+from .utils import search_memory
+from .utils import wx_core_loger, CORE_DB_TYPE
 import ctypes.wintypes as wintypes
 
 # 定义常量
@@ -35,86 +35,84 @@ void_p = ctypes.c_void_p
 
 
 # 读取内存中的字符串(key部分)
-@info_error
-def get_info_with_key(h_process, address, address_len=8):
+@wx_core_error
+def get_key_by_offs(h_process, address, address_len=8):
     array = ctypes.create_string_buffer(address_len)
-    if ReadProcessMemory(h_process, void_p(address), array, address_len, 0) == 0: return "None"
+    if ReadProcessMemory(h_process, void_p(address), array, address_len, 0) == 0: return None
     address = int.from_bytes(array, byteorder='little')  # 逆序转换为int地址（key地址）
     key = ctypes.create_string_buffer(32)
-    if ReadProcessMemory(h_process, void_p(address), key, 32, 0) == 0: return "None"
+    if ReadProcessMemory(h_process, void_p(address), key, 32, 0) == 0: return None
     key_string = bytes(key).hex()
     return key_string
 
 
 # 读取内存中的字符串(非key部分)
-@info_error
+@wx_core_error
 def get_info_string(h_process, address, n_size=64):
     array = ctypes.create_string_buffer(n_size)
-    if ReadProcessMemory(h_process, void_p(address), array, n_size, 0) == 0: return "None"
+    if ReadProcessMemory(h_process, void_p(address), array, n_size, 0) == 0: return None
     array = bytes(array).split(b"\x00")[0] if b"\x00" in array else bytes(array)
     text = array.decode('utf-8', errors='ignore')
-    return text.strip() if text.strip() != "" else "None"
+    return text.strip() if text.strip() != "" else None
 
 
 # 读取内存中的字符串(昵称部分name)
-@info_error
+@wx_core_error
 def get_info_name(h_process, address, address_len=8, n_size=64):
     array = ctypes.create_string_buffer(n_size)
-    if ReadProcessMemory(h_process, void_p(address), array, n_size, 0) == 0: return "None"
+    if ReadProcessMemory(h_process, void_p(address), array, n_size, 0) == 0: return None
     address1 = int.from_bytes(array[:address_len], byteorder='little')  # 逆序转换为int地址（key地址）
     info_name = get_info_string(h_process, address1, n_size)
-    if info_name != "None":
+    if info_name != None:
         return info_name
     array = bytes(array).split(b"\x00")[0] if b"\x00" in array else bytes(array)
     text = array.decode('utf-8', errors='ignore')
-    return text.strip() if text.strip() != "" else "None"
+    return text.strip() if text.strip() != "" else None
 
 
 # 读取内存中的wxid
-@info_error
+@wx_core_error
 def get_info_wxid(h_process):
     find_num = 100
     addrs = search_memory(h_process, br'\\Msg\\FTSContact', max_num=find_num)
     wxids = []
     for addr in addrs:
         array = ctypes.create_string_buffer(80)
-        if ReadProcessMemory(h_process, void_p(addr - 30), array, 80, 0) == 0: return "None"
+        if ReadProcessMemory(h_process, void_p(addr - 30), array, 80, 0) == 0: return None
         array = bytes(array)  # .split(b"\\")[0]
         array = array.split(b"\\Msg")[0]
         array = array.split(b"\\")[-1]
         wxids.append(array.decode('utf-8', errors='ignore'))
-    wxid = max(wxids, key=wxids.count) if wxids else "None"
-    CloseHandle(h_process)
+    wxid = max(wxids, key=wxids.count) if wxids else None
     return wxid
 
 
-# 读取内存中的filePath基于wxid（慢）
-@info_error
-def get_info_filePath_base_wxid(h_process, wxid=""):
+# 读取内存中的wx_path基于wxid（慢）
+@wx_core_error
+def get_wx_dir_by_wxid(h_process, wxid=""):
     find_num = 10
     addrs = search_memory(h_process, wxid.encode() + br'\\Msg\\FTSContact', max_num=find_num)
-    filePath = []
+    wxid_dir = []
     for addr in addrs:
         win_addr_len = 260
         array = ctypes.create_string_buffer(win_addr_len)
-        if ReadProcessMemory(h_process, void_p(addr - win_addr_len + 50), array, win_addr_len, 0) == 0: return "None"
+        if ReadProcessMemory(h_process, void_p(addr - win_addr_len + 50), array, win_addr_len, 0) == 0: return None
         array = bytes(array).split(b"\\Msg")[0]
         array = array.split(b"\00")[-1]
-        filePath.append(array.decode('utf-8', errors='ignore'))
-    filePath = max(filePath, key=filePath.count) if filePath else "None"
-    CloseHandle(h_process)
-    return filePath
+        wxid_dir.append(array.decode('utf-8', errors='ignore'))
+    wxid_dir = max(wxid_dir, key=wxid_dir.count) if wxid_dir else None
+    return wxid_dir
 
 
-@info_error
-def get_info_filePath(wxid="all"):
+@wx_core_error
+def get_wx_dir_by_reg(wxid="all"):
     """
-    # 读取filePath (微信文件路径) （快）
+    # 读取 wx_dir (微信文件路径) （快）
     :param wxid: 微信id
-    :return: 返回filePath
+    :return: 返回wx_dir,if wxid="all" return wx_dir else return wx_dir/wxid
     """
     if not wxid:
-        return "None"
+        return None
     w_dir = "MyDocument:"
     is_w_dir = False
 
@@ -156,17 +154,31 @@ def get_info_filePath(wxid="all"):
             profile = os.environ.get("USERPROFILE")
             w_dir = os.path.join(profile, "Documents")
 
-    msg_dir = os.path.join(w_dir, "WeChat Files")
+    wx_dir = os.path.join(w_dir, "WeChat Files")
 
-    if wxid == "all" and os.path.exists(msg_dir):
-        return msg_dir
+    if wxid and wxid != "all":
+        wxid_dir = os.path.join(wx_dir, wxid)
+        return wxid_dir if os.path.exists(wxid_dir) else None
+    return wx_dir if os.path.exists(wx_dir) else None
 
-    filePath = os.path.join(msg_dir, wxid)
-    return filePath if os.path.exists(filePath) else "None"
+
+def get_wx_dir(wxid: str = "", Handle=None):
+    """
+    综合运用多种方法获取wx_path
+    优先调用 get_wx_dir_by_reg (该方法速度快)
+    次要调用 get_wx_dir_by_wxid （该方法通过搜索内存进行，速度较慢）
+    """
+    if wxid:
+        wx_dir = get_wx_dir_by_reg(wxid) if wxid else None
+        if wxid is not None and wx_dir is None and Handle:  # 通过wxid获取wx_path,如果wx_path为空则通过wxid获取wx_path
+            wx_dir = get_wx_dir_by_wxid(Handle, wxid=wxid)
+    else:
+        wx_dir = get_wx_dir_by_reg()
+    return wx_dir
 
 
-@info_error
-def get_key(pid, db_path, addr_len):
+@wx_core_error
+def get_key_by_mem_search(pid, db_path, addr_len):
     """
     获取key （慢）
     :param pid: 进程id
@@ -177,10 +189,10 @@ def get_key(pid, db_path, addr_len):
 
     def read_key_bytes(h_process, address, address_len=8):
         array = ctypes.create_string_buffer(address_len)
-        if ReadProcessMemory(h_process, void_p(address), array, address_len, 0) == 0: return "None"
+        if ReadProcessMemory(h_process, void_p(address), array, address_len, 0) == 0: return None
         address = int.from_bytes(array, byteorder='little')  # 逆序转换为int地址（key地址）
         key = ctypes.create_string_buffer(32)
-        if ReadProcessMemory(h_process, void_p(address), key, 32, 0) == 0: return "None"
+        if ReadProcessMemory(h_process, void_p(address), key, 32, 0) == 0: return None
         key_bytes = bytes(key)
         return key_bytes
 
@@ -190,16 +202,17 @@ def get_key(pid, db_path, addr_len):
 
     MicroMsg_path = os.path.join(db_path, "MSG", "MicroMsg.db")
 
-    start_adress = 0
-    end_adress = 0x7FFFFFFFFFFFFFFF
+    start_adress = 0x7FFFFFFFFFFFFFFF
+    end_adress = 0
 
     memory_maps = get_memory_maps(pid)
     for module in memory_maps:
         if module.FileName and 'WeChatWin.dll' in module.FileName:
-            start_adress = module.BaseAddress
-            end_adress = module.BaseAddress + module.RegionSize
-            break
-    # print(start_adress, end_adress)
+            s = module.BaseAddress
+            e = module.BaseAddress + module.RegionSize
+            start_adress = s if s < start_adress else start_adress
+            end_adress = e if e > end_adress else end_adress
+
     hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid)
     type1_addrs = search_memory(hProcess, phone_type1.encode(), max_num=2, start_address=start_adress,
                                 end_address=end_adress)
@@ -212,34 +225,53 @@ def get_key(pid, db_path, addr_len):
     if len(type1_addrs) >= 2: type_addrs += type1_addrs
     if len(type2_addrs) >= 2: type_addrs += type2_addrs
     if len(type3_addrs) >= 2: type_addrs += type3_addrs
-    if len(type_addrs) == 0: return "None"
+    if len(type_addrs) == 0: return None
 
     type_addrs.sort()  # 从小到大排序
 
     for i in type_addrs[::-1]:
         for j in range(i, i - 2000, -addr_len):
             key_bytes = read_key_bytes(hProcess, j, addr_len)
-            if key_bytes == "None":
+            if key_bytes == None:
                 continue
             if verify_key(key_bytes, MicroMsg_path):
                 return key_bytes.hex()
-    return "None"
+    CloseHandle(hProcess)
+    return None
 
 
-def get_details(pid, version_list: dict = None, is_logging: bool = False):
+@wx_core_error
+def get_wx_key(key: str = "", wx_dir: str = "", pid=0, addrLen=8):
+    """
+    获取key （慢）
+    :param key: 微信key
+    :param wx_dir: 微信文件路径
+    :param pid: 进程id
+    :param addrLen: 地址长度
+    :return: 返回key
+    """
+    isKey = verify_key(
+        bytes.fromhex(key),
+        os.path.join(wx_dir, "MSG", "MicroMsg.db")) if key is not None and wx_dir is not None else False
+    if wx_dir is not None and not isKey:
+        key = get_key_by_mem_search(pid, wx_dir, addrLen)
+    return key
+
+
+@wx_core_error
+def get_info_details(pid, WX_OFFS: dict = None):
     path = get_process_exe_path(pid)
     rd = {'pid': pid, 'version': get_file_version_info(path),
-          "account": "None", "mobile": "None", "name": "None", "mail": "None",
-          "wxid": "None", "key": "None", "filePath": "None"}
+          "account": None, "mobile": None, "nickname": None, "mail": None,
+          "wxid": None, "key": None, "wx_dir": None}
     try:
-        bias_list = version_list.get(rd['version'], None)
+        bias_list = WX_OFFS.get(rd['version'], None)
 
         Handle = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, False, pid)
 
         addrLen = get_exe_bit(path) // 8
         if not isinstance(bias_list, list) or len(bias_list) <= 4:
-            error = f"[-] WeChat Current Version Is Not Supported(maybe not get account,mobile,name,mail)"
-            if is_logging: print(error)
+            wx_core_loger.warning(f"[-] WeChat Current Version Is Not Supported(not get account,mobile,nickname,mail)")
         else:
             wechat_base_address = 0
             memory_maps = get_memory_maps(pid)
@@ -248,60 +280,50 @@ def get_details(pid, version_list: dict = None, is_logging: bool = False):
                     wechat_base_address = module.BaseAddress
                     rd['version'] = get_file_version_info(module.FileName) if os.path.exists(module.FileName) else rd[
                         'version']
-                    bias_list = version_list.get(rd['version'], None)
+                    bias_list = WX_OFFS.get(rd['version'], None)
                     break
-            if wechat_base_address == 0:
-                error = f"[-] WeChat WeChatWin.dll Not Found"
-                if is_logging: print(error)
-            name_baseaddr = wechat_base_address + bias_list[0]
-            account_baseaddr = wechat_base_address + bias_list[1]
-            mobile_baseaddr = wechat_base_address + bias_list[2]
-            mail_baseaddr = wechat_base_address + bias_list[3]
-            key_baseaddr = wechat_base_address + bias_list[4]
+            if wechat_base_address != 0:
+                name_baseaddr = wechat_base_address + bias_list[0]
+                account_baseaddr = wechat_base_address + bias_list[1]
+                mobile_baseaddr = wechat_base_address + bias_list[2]
+                mail_baseaddr = wechat_base_address + bias_list[3]
+                key_baseaddr = wechat_base_address + bias_list[4]
 
-            rd['account'] = get_info_string(Handle, account_baseaddr, 32) if bias_list[1] != 0 else "None"
-            rd['mobile'] = get_info_string(Handle, mobile_baseaddr, 64) if bias_list[2] != 0 else "None"
-            rd['name'] = get_info_name(Handle, name_baseaddr, addrLen, 64) if bias_list[0] != 0 else "None"
-            rd['mail'] = get_info_string(Handle, mail_baseaddr, 64) if bias_list[3] != 0 else "None"
-            rd['key'] = get_info_with_key(Handle, key_baseaddr, addrLen) if bias_list[4] != 0 else "None"
+                rd['account'] = get_info_string(Handle, account_baseaddr, 32) if bias_list[1] != 0 else None
+                rd['mobile'] = get_info_string(Handle, mobile_baseaddr, 64) if bias_list[2] != 0 else None
+                rd['nickname'] = get_info_name(Handle, name_baseaddr, addrLen, 64) if bias_list[0] != 0 else None
+                rd['mail'] = get_info_string(Handle, mail_baseaddr, 64) if bias_list[3] != 0 else None
+                rd['key'] = get_key_by_offs(Handle, key_baseaddr, addrLen) if bias_list[4] != 0 else None
+            else:
+                wx_core_loger.warning(f"[-] WeChat WeChatWin.dll Not Found")
 
         rd['wxid'] = get_info_wxid(Handle)
+        rd['wx_dir'] = get_wx_dir(rd['wxid'], Handle)
+        rd['key'] = get_wx_key(rd['key'], rd['wx_dir'], rd['pid'], addrLen)
 
-        rd['filePath'] = get_info_filePath(rd['wxid']) if rd['wxid'] != "None" else "None"
-        if rd['wxid'] != "None" and rd['filePath'] == "None":  # 通过wxid获取filePath,如果filePath为空则通过wxid获取filePath
-            rd['filePath'] = get_info_filePath_base_wxid(Handle, wxid=rd['wxid'])
-
-        isKey = verify_key(
-            bytes.fromhex(rd["key"]),
-            os.path.join(rd['filePath'], "MSG", "MicroMsg.db")) if rd['key'] != "None" and rd[
-            'filePath'] != "None" else False
-
-        if rd['filePath'] != "None" and rd['key'] == "None" and not isKey:
-            rd['key'] = get_key(rd['pid'], rd['filePath'], addrLen)
         CloseHandle(Handle)
     except Exception as e:
-        error = f"[-] WeChat Get Info Error:{e}"
-        if is_logging: print(error)
+        wx_core_loger.error(f"[-] WeChat Get Info Error:{e}", exc_info=True)
     return rd
 
 
-# 读取微信信息(account,mobile,name,mail,wxid,key)
-def read_info(version_list: dict = None, is_logging: bool = False, save_path: str = None):
+# 读取微信信息(account,mobile,nickname,mail,wxid,key)
+@wx_core_error
+def get_wx_info(WX_OFFS: dict = None, is_print: bool = False, save_path: str = None):
     """
-    读取微信信息(account,mobile,name,mail,wxid,key)
-    :param version_list:  版本偏移量
-    :param is_logging:  是否打印日志
+    读取微信信息(account,mobile,nickname,mail,wxid,key)
+    :param WX_OFFS:  版本偏移量
+    :param is_print:  是否打印结果
     :param save_path:  保存路径
     :return: 返回微信信息 [{"pid": pid, "version": version, "account": account,
-                          "mobile": mobile, "name": name, "mail": mail, "wxid": wxid,
-                          "key": key, "filePath": filePath}, ...]
+                          "mobile": mobile, "nickname": nickname, "mail": mail, "wxid": wxid,
+                          "key": key, "wx_dir": wx_dir}, ...]
     """
-    if version_list is None:
-        version_list = {}
+    if WX_OFFS is None:
+        WX_OFFS = {}
 
     wechat_pids = []
     result = []
-    error = ""
 
     processes = get_process_list()
     for pid, name in processes:
@@ -309,22 +331,21 @@ def read_info(version_list: dict = None, is_logging: bool = False, save_path: st
             wechat_pids.append(pid)
 
     if len(wechat_pids) <= 0:
-        error = "[-] WeChat No Run"
-        if is_logging: print(error)
-        return error
+        wx_core_loger.error("[-] WeChat No Run")
+        return result
 
     for pid in wechat_pids:
-        rd = get_details(pid, version_list, is_logging)
+        rd = get_info_details(pid, WX_OFFS)
         result.append(rd)
 
-    if is_logging:
+    if is_print:
         print("=" * 32)
         if isinstance(result, str):  # 输出报错
             print(result)
         else:  # 输出结果
             for i, rlt in enumerate(result):
                 for k, v in rlt.items():
-                    print(f"[+] {k:>8}: {v}")
+                    print(f"[+] {k:>8}: {v if v else 'None'}")
                 print(end="-" * 32 + "\n" if i != len(result) - 1 else "")
         print("=" * 32)
 
@@ -339,95 +360,63 @@ def read_info(version_list: dict = None, is_logging: bool = False, save_path: st
     return result
 
 
-def get_wechat_db(require_list: Union[List[str], str] = "all", msg_dir: str = None, wxid: Union[List[str], str] = None,
-                  is_logging: bool = False, is_return_list: bool = False) -> Union[str, dict, list]:
+@wx_core_error
+def get_wx_db(msg_dir: str = None,
+              db_types: Union[List[str], str] = None,
+              wxids: Union[List[str], str] = None) -> List[dict]:
     r"""
     获取微信数据库路径
-    :param require_list:  需要获取的数据库类型
-    :param msg_dir:  微信数据库目录 eg: C:\Users\user\Documents\WeChat Files
-    :param wxid:  微信id
-    :param is_logging:  是否打印日志
-    :return:
+    :param msg_dir:  微信数据库目录 eg: C:\Users\user\Documents\WeChat Files （非wxid目录）
+    :param db_types:  需要获取的数据库类型,如果为空,则获取所有数据库
+    :param wxids:  微信id列表,如果为空,则获取所有wxid下的数据库
+    :return: [{"wxid": wxid, "db_type": db_type, "db_path": db_path, "wxid_dir": wxid_dir}, ...]
     """
+    result = []
 
-    if not msg_dir:
-        msg_dir = get_info_filePath(wxid="all")
+    if not msg_dir or not os.path.exists(msg_dir):
+        wx_core_loger.warning(f"[-] 微信文件目录不存在: {msg_dir}, 将使用默认路径")
+        msg_dir = get_wx_dir_by_reg(wxid="all")
 
     if not os.path.exists(msg_dir):
-        error = f"[-] 目录不存在: {msg_dir}"
-        if is_logging: print(error)
-        return error
+        wx_core_loger.error(f"[-] 目录不存在: {msg_dir}", exc_info=True)
+        return result
 
-    user_dirs = {}  # wx用户目录
-    files = os.listdir(msg_dir)
-    if wxid:  # 如果指定wxid
-        if isinstance(wxid, str):
-            wxid = wxid.split(";")
-        for file_name in files:
-            if file_name in wxid:
-                user_dirs[os.path.join(msg_dir, file_name)] = os.path.join(msg_dir, file_name)
-    else:  # 如果未指定wxid
-        for file_name in files:
-            if file_name == "All Users" or file_name == "Applet" or file_name == "WMPF":
-                continue
-            user_dirs[os.path.join(msg_dir, file_name)] = os.path.join(msg_dir, file_name)
+    wxids = wxids.split(";") if isinstance(wxids, str) else wxids
+    if not isinstance(wxids, list) or len(wxids) <= 0:
+        wxids = None
+    db_types = db_types.split(";") if isinstance(db_types, str) and db_types else db_types
+    if not isinstance(db_types, list) or len(db_types) <= 0:
+        db_types = None
 
-    if isinstance(require_list, str):
-        require_list = require_list.split(";")
-
-    # generate pattern
-    if "all" in require_list:
-        pattern = {"all": re.compile(r".*\.db$")}
-    elif isinstance(require_list, list):
-        pattern = {}
-        for require in require_list:
-            pattern[require] = re.compile(r"%s.*?\.db$" % require)
+    wxid_dirs = {}  # wx用户目录
+    if wxids or "All Users" in os.listdir(msg_dir) or "Applet" in os.listdir(msg_dir) or "WMPF" in os.listdir(msg_dir):
+        for sub_dir in os.listdir(msg_dir):
+            if os.path.isdir(os.path.join(msg_dir, sub_dir)) and sub_dir not in ["All Users", "Applet", "WMPF"]:
+                wxid_dirs[os.path.basename(sub_dir)] = os.path.join(msg_dir, sub_dir)
     else:
-        error = f"[-] 参数错误: {require_list}"
-        if is_logging: print(error)
-        return error
-
-    if is_return_list:  # 如果返回列表,返回值：{wxid:[db_path1,db_path2]}
-        db_list = {}
-        # 获取数据库路径
-        for user, user_dir in user_dirs.items():  # 遍历用户目录
-            db_list[user] = []
-            for root, dirs, files in os.walk(user_dir):
-                for file_name in files:
-                    for n, p in pattern.items():
-                        if p.match(file_name):
-                            src_path = os.path.join(root, file_name)
-                            db_list[user].append(src_path)
-        return db_list
-
-    # 获取数据库路径
-    for user, user_dir in user_dirs.items():  # 遍历用户目录
-        user_dirs[user] = {n: [] for n in pattern.keys()}
-        for root, dirs, files in os.walk(user_dir):
+        wxid_dirs[os.path.basename(msg_dir)] = msg_dir
+    for wxid, wxid_dir in wxid_dirs.items():
+        if wxids and wxid not in wxids:  # 如果指定wxid,则过滤掉其他wxid
+            continue
+        for root, dirs, files in os.walk(wxid_dir):
             for file_name in files:
-                for n, p in pattern.items():
-                    if p.match(file_name):
-                        src_path = os.path.join(root, file_name)
-                        user_dirs[user][n].append(src_path)
-
-    if is_logging:
-        for user, user_dir in user_dirs.items():
-            print(f"[+] user_path: {user}")
-            for n, paths in user_dir.items():
-                print(f"    {n}:")
-                for path in paths:
-                    print(f"        {path.replace(user, '')}")
-        print("-" * 32)
-        print(f"[+] 共 {len(user_dirs)} 个微信账号")
-    return user_dirs
+                if not file_name.endswith(".db"):
+                    continue
+                db_type = re.sub(r"\d*\.db$", "", file_name)
+                if db_types and db_type not in db_types:  # 如果指定db_type,则过滤掉其他db_type
+                    continue
+                db_path = os.path.join(root, file_name)
+                result.append({"wxid": wxid, "db_type": db_type, "db_path": db_path, "wxid_dir": wxid_dir})
+    return result
 
 
-def get_core_db(wx_path: str, db_type: list = None) -> [str]:
+@wx_core_error
+def get_core_db(wx_path: str, db_types: list = None) -> [dict]:
     """
     获取聊天消息核心数据库路径
-    :param wx_path: 微信文件夹路径 eg：C:\\*****\\WeChat Files\\wxid*******
-    :param db_type: 数据库类型 eg: ["MSG", "MediaMSG", "MicroMsg"]，三个中选择一个或多个
-    :return: 返回数据库路径 eg:["",""]
+    :param wx_path: 微信文件夹路径 eg：C:\*****\WeChat Files\wxid*******
+    :param db_types: 数据库类型 eg: CORE_DB_TYPE，中选择一个或多个
+    :return: 返回数据库路径 eg: [{"wxid": wxid, "db_type": db_type, "db_path": db_path, "wxid_dir": wxid_dir}, ...]
     """
     if not os.path.exists(wx_path):
         return False, f"[-] 目录不存在: {wx_path}"
@@ -473,20 +462,20 @@ def get_core_db(wx_path: str, db_type: list = None) -> [str]:
     if not db_type:
         db_type = db_type_all
 
-    db_type = [dt for dt in db_type if dt in db_type_all]
-
+    if not db_types:
+        db_types = CORE_DB_TYPE
+    db_types = [dt for dt in db_types if dt in CORE_DB_TYPE]
     msg_dir = os.path.dirname(wx_path)
     my_wxid = os.path.basename(wx_path)
-    WxDbPath = get_wechat_db(db_type, msg_dir, wxid=my_wxid, is_logging=False, is_return_list=True)  # 获取微信数据库路径
-    if isinstance(WxDbPath, str):  # 如果返回的是字符串，则表示出错
-        return False, WxDbPath
-    wxdbpaths = WxDbPath.get(wx_path, [])
+    wxdbpaths = get_wx_db(msg_dir=msg_dir, db_types=db_types, wxids=my_wxid)
+
     if len(wxdbpaths) == 0:
+        wx_core_loger.error(f"[-] get_core_db 未获取到数据库路径")
         return False, "未获取到数据库路径"
     return True, wxdbpaths
 
 
 if __name__ == '__main__':
-    from pywxdump import VERSION_LIST
+    from pywxdump import WX_OFFS
 
-    read_info(VERSION_LIST, is_logging=True)
+    get_wx_info(WX_OFFS, is_print=True)

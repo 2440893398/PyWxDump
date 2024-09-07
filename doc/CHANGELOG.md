@@ -1,6 +1,224 @@
-## v3.0.41.(待发布)
+## v3.1.33.(待发布)
+
+- 
+
+## v3.1.32
+
+- 修改注释
+- 群聊增加群成员显示
+- M CE获取基址.md
+- UPDATE CHANGELOG.md
+
+## v3.1.31
+
+- fix 联系人搜索bug
+
+## v3.1.30
+
+- fix
+- add log to file
+
+## v3.1.29
+
+- fix
+- fix 群聊list
+
+## v3.1.28
+
+- fix #125
+- UPDATE CHANGELOG.md
+
+## v3.1.27
+
+- fix
+- update test
+- UPDATE CHANGELOG.md
+- fix DIl load failed while importing pydantic_core:
+
+## v3.1.26
+
+- fix dbshow #124
+
+## v3.1.25
+
+- fix
+- UPDATE CHANGELOG.md
+
+## v3.1.24
+
+- fix 部分图片无法读取
+- get_msgs 允许多个wxid
+- UPDATE CHANGELOG.md
+
+## v3.1.23
+
+- fix
+- import 优化
+- rename core_db_type
+- fix import时候无法自动处理data
+
+## v3.1.22
+
+- fix 单用户使用上次数据报错问题
+- UPDATE CHANGELOG.md
+
+## v3.1.21
+
+- fix
+- fix #123
+- fix 无限递归问题
+- update README.md
+- UPDATE CHANGELOG.md
+
+## v3.1.20
+
+- fix
+- 增加注释说明
+- add Sns
+- Media_add_index
+- add export html
+- UPDATE CHANGELOG.md
+- fix build exe error
+- 增加注释，增加自定义实时合并数据库路径
+- 该flask为fastapi，速度更快
+- fix and add export html
+- 加快web页面加载数据，重置部分api，调整server为fastapi
+
+## v3.1.18
+
+- fix
+- 分离检查数据库中表是否存在，在每个函数运行前检查表是否存在
+
+## v3.1.17
+
+- UPDATE CHANGELOG.md
+- (分享)卡片式链接 增加extra，包含更多数据
+
+## v3.1.16
+
+- 新增个性签名词云
+- fix export
+- UPDATE CHANGELOG.md
+
+## v3.1.15
+
+- fix
+- fix build error
+
+## v3.1.14
+
+- fix
+- 添加注释
+- 新标签页打开链接
+- 清理2.0的ui文件
+- 实时消息增加工具路径设置
+- fix bug；略微调整UI
+- UPDATE CHANGELOG.md
+- (backup/master) UPDATE CHANGELOG.md
+
+## v3.1.13
+
+- fix
+- UPDATE CHANGELOG.md
+
+## v3.1.12
+
+- UPDATE CHANGELOG.md
+- fix 部分api请求失败情况下，不会噶了
+
+## v3.1.11
+
+- fix
+
+## v3.1.10
+
+- 增加了一些数据显示
+- 增加聊天情况热力图
+- UPDATE CHANGELOG.md
+
+## v3.1.9
+
+- UPDATE CHANGELOG.md
+- fix 更换选项，无法自动启用新的数据库
+- 调整颜色，但是还是很丑，打算添加自定义颜色进去
+
+## v3.1.8
+
+- fix #114
+- UPDATE CHANGELOG.md
+
+## v3.1.7
+
+- fix
+- 增加接收、发送消息数量的图表显示
+- UPDATE CHANGELOG.md
+- 增加聊天联系人top10 系列，点击直接查看
+
+## v3.1.6
+
+- 优化界面
+- 日聊天记录数量可用
+- fix 引用图片显示错误的问题
+
+## v3.1.5
+
+- fix
+- 格式化代码
+- UPDATE CHANGELOG.md
+
+## v3.1.4
+
+- fix cli
+
+## v3.1.3
+
+- fix 上下文出错的bug
+- UPDATE CHANGELOG.md
+
+## v3.1.2
+
+- 显示更直观
+
+## v3.1.1
+
+- 格式化
+- 显示更直观
+- 增加日志管理
+- 增加表情显示
+- 多线程报错问题
+- fix 实时消息
+- 修复了一下bug
+- 同步设置web的标签
+- 设置详细信息的显示格式
+- 增加rjson非0的堆栈日志
+- 为数据库添加索引，加快查询速度
+- UPDATE CHANGELOG.md
+- add Session 数据的实时导出
+- 会话查询，取消显示”订阅号“这个wxid
+- fix 合并数据库，以及部分专业工具的显示问题
+- get_session_list 根据时间排序更加合理
+- version_list.josn 重命名为 WX_OFFS.json
+
+## v3.1.0
+
+- fix
+- add wx3.9.11.25
+- UPDATE CHANGELOG.md
+- 3.1.0,很多更改丢失，重新恢复的文件
+
+## v3.0.42
+
+- 增加容错
+- fix 部分图片无法读取
+- update README
+- fix 多重引用消息显示错误
+- Update version_list.json (#110)
+- Merge branch 'master' of github.com:xaoyaoo/PyWxDump
+
+## v3.0.41
 
 - 格式化代码
+- 加快wxinfo获取
 - 加速merge_db合并速度
 - 加快wxinfo获取，速度提升10%
 - UPDATE CHANGELOG.md
@@ -160,7 +378,6 @@
 ## v3.0.15
 
 - 增加合并数据库的容错
-- (backup/master) 增加合并数据库的容错
 
 ## v3.0.14
 

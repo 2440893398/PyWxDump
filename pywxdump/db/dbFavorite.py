@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-#
 # -------------------------------------------------------------------------------
-# Name:         parsingFavorite.py
-# Description:  
+# Name:         Favorite.py
+# Description:  负责处理wx收藏数据库
 # Author:       xaoyaoo
 # Date:         2024/05/18
 # -------------------------------------------------------------------------------
-import pandas as pd
-
 from .dbbase import DatabaseBase
 from .utils import timestamp2str, xml2dict
 
@@ -18,38 +16,21 @@ from .utils import timestamp2str, xml2dict
 # * FavTags：为收藏内容添加的标签
 
 
-def FavoriteTypeId2Name(Type):
-    TypeNameDict = {
-        1: "文本",  # 文本 已测试
-        2: "图片",  # 图片 已测试
-        3: "语音",  # 语音
-        4: "视频",  # 视频 已测试
-        5: "链接",  # 链接 已测试
-        6: "位置",  # 位置
-        7: "小程序",  # 小程序
-        8: "文件",  # 文件 已测试
-        14: "聊天记录",  # 聊天记录 已测试
-        16: "群聊视频",  # 群聊中的视频 可能
-        18: "笔记"  # 笔记 已测试
-    }
-    return TypeNameDict.get(Type, "未知")
-
-
-class ParsingFavorite(DatabaseBase):
+class FavoriteHandler(DatabaseBase):
     _class_name = "Favorite"
-
-    def __init__(self, db_path):
-        super().__init__(db_path)
+    Favorite_required_tables = ["FavItems", "FavDataItem", "FavTagDatas", "FavBindTagDatas"]
 
     def get_tags(self, LocalID):
         """
         return: {LocalID: TagName}
         """
+        if not self.tables_exist("FavTagDatas"):
+            return {}
         if LocalID is None:
             sql = "select LocalID, TagName from FavTagDatas order by ServerSeq"
         else:
             sql = "select LocalID, TagName from FavTagDatas where LocalID = '%s' order by ServerSeq " % LocalID
-        tags = self.execute_sql(sql)  # [(1, 797940830, '程序语言类'), (2, 806153863, '账单')]
+        tags = self.execute(sql)  # [(1, 797940830, '程序语言类'), (2, 806153863, '账单')]
         # 转换为字典
         tags = {tag[0]: tag[1] for tag in tags}
         return tags
@@ -59,7 +40,7 @@ class ParsingFavorite(DatabaseBase):
         return: [(FavLocalID, TagName)]
         """
         sql = "select A.FavLocalID, B.TagName from FavBindTagDatas A, FavTagDatas B where A.TagLocalID = B.LocalID"
-        FavBindTags = self.execute_sql(sql)
+        FavBindTags = self.execute(sql)
         return FavBindTags
 
     def get_favorite(self):
@@ -121,11 +102,14 @@ class ParsingFavorite(DatabaseBase):
             "Rerserved7": "保留字段7"
         }
 
+        if not self.tables_exist(["FavItems", "FavDataItem"]):
+            return False
+
         sql1 = "select " + ",".join(FavItemsFields.keys()) + " from FavItems order by UpdateTime desc"
         sql2 = "select " + ",".join(FavDataItemFields.keys()) + " from FavDataItem B order by B.RecId asc"
 
-        FavItemsList = self.execute_sql(sql1)
-        FavDataItemList = self.execute_sql(sql2)
+        FavItemsList = self.execute(sql1)
+        FavDataItemList = self.execute(sql2)
         if FavItemsList is None or len(FavItemsList) == 0:
             return False
 
@@ -141,7 +125,10 @@ class ParsingFavorite(DatabaseBase):
         FavTagsDict = {}
         for FavLocalID, TagName in FavTags:
             FavTagsDict[FavLocalID] = FavTagsDict.get(FavLocalID, []) + [TagName]
-
+        try:
+            import pandas as pd
+        except ImportError:
+            return False
         pf = pd.DataFrame(FavItemsList)
         pf.columns = FavItemsFields.keys()  # set column names
         pf["UpdateTime"] = pf["UpdateTime"].apply(timestamp2str)  # 处理时间
@@ -152,3 +139,20 @@ class ParsingFavorite(DatabaseBase):
         pf = pf.fillna("")  # 去掉Nan
         rdata = pf.to_dict(orient="records")
         return rdata
+
+
+def FavoriteTypeId2Name(Type):
+    TypeNameDict = {
+        1: "文本",  # 文本 已测试
+        2: "图片",  # 图片 已测试
+        3: "语音",  # 语音
+        4: "视频",  # 视频 已测试
+        5: "链接",  # 链接 已测试
+        6: "位置",  # 位置
+        7: "小程序",  # 小程序
+        8: "文件",  # 文件 已测试
+        14: "聊天记录",  # 聊天记录 已测试
+        16: "群聊视频",  # 群聊中的视频 可能
+        18: "笔记"  # 笔记 已测试
+    }
+    return TypeNameDict.get(Type, "未知")

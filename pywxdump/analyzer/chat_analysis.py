@@ -8,10 +8,9 @@
 import sqlite3
 import time
 from collections import Counter
-import pandas as pd
 
-from pywxdump.dbpreprocess.utils import xml2dict
-from pywxdump.dbpreprocess import parsingMSG
+from pywxdump.db.utils import xml2dict
+from pywxdump.db import dbMSG
 
 def date_chat_count(chat_data, interval="W"):
     """
@@ -19,6 +18,7 @@ def date_chat_count(chat_data, interval="W"):
     :param chat_data: 聊天数据 json {"CreateTime":时间,"Type":消息类型,"SubType":消息子类型,"StrContent":消息内容,"StrTalker":聊天对象,"IsSender":是否发送者}
     :param interval: 时间间隔 可选值：day、month、year、week
     """
+    import pandas as pd
     chat_data = pd.DataFrame(chat_data)
     chat_data["CreateTime"] = pd.to_datetime(chat_data["CreateTime"])
     chat_data["AdjustedTime"] = pd.to_datetime(chat_data["CreateTime"]) - pd.Timedelta(hours=4)

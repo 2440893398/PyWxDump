@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-#
 # -------------------------------------------------------------------------------
-# Name:         utils.py
+# Name:         common_utils.py
 # Description:  
 # Author:       xaoyaoo
 # Date:         2024/04/15
 # -------------------------------------------------------------------------------
 import hashlib
+import os
 import re
 import time
 import wave
@@ -15,8 +16,26 @@ from io import BytesIO
 import pysilk
 import lxml.etree as ET  # 这个模块更健壮些，微信XML格式有时有非标格式，会导致xml.etree.ElementTree处理失败
 from collections import defaultdict
-
 from pywxdump.file import AttachmentContext
+
+from ._loger import db_loger
+
+
+def db_error(func):
+    """
+    错误处理装饰器
+    :param func:
+    :return:
+    """
+
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            db_loger.error(f"db_error: {e}", exc_info=True)
+            return None
+
+    return wrapper
 
 
 def type_converter(type_id_or_name: [str, tuple]):
@@ -171,7 +190,7 @@ def dat2img(input_data):
 
                 out_bytes = np.bitwise_xor(input_bytes, t)  # 使用NumPy进行向量化的异或解密操作
                 md5 = get_md5(out_bytes)
-                return False, fomt, md5, out_bytes
+                return True, fomt, md5, out_bytes
         return False, False, False, False
     except ImportError:
         pass
@@ -234,18 +253,19 @@ def xml2dict(xml_string):
     return parse_xml(root)
 
 
-def download_file(url, save_path=None):
+def download_file(url, save_path=None, proxies=None):
     """
     下载文件
     :param url: 文件下载地址
     :param save_path: 保存路径
+    :param proxies: requests 代理
     :return: 保存路径
     """
     headers = {
         "User-Agent": "Mozilla/5.0 (Linux; Android 10; Redmi K40 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Mobile Safari/537.36"
 
     }
-    r = requests.get(url, headers=headers)
+    r = requests.get(url, headers=headers, proxies=proxies)
     if r.status_code != 200:
         return None
     data = r.content
@@ -349,7 +369,7 @@ def silk2audio(buf_data, is_play=False, is_wave=False, save_path=None, rate=2400
 
         play_audio(pcm_data, rate)
 
-    print(is_play, is_wave, save_path)
+    # print(is_play, is_wave, save_path)
 
     if is_wave:  # 转换为wav文件
         wave_file = BytesIO()  # 创建wav文件

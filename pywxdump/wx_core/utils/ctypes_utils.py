@@ -138,16 +138,6 @@ GetMappedFileNameW.restype = ctypes.wintypes.DWORD
 GetMappedFileNameW.argtypes = [ctypes.wintypes.HANDLE, ctypes.c_void_p, ctypes.wintypes.LPWSTR, ctypes.wintypes.DWORD]
 
 
-def get_info_with_key(h_process, address, address_len=8):
-    array = ctypes.create_string_buffer(address_len)
-    if ReadProcessMemory(h_process, ctypes.c_void_p(address), array, address_len, 0) == 0: return None
-    address = int.from_bytes(array, byteorder='little')  # 逆序转换为int地址（key地址）
-    key = ctypes.create_string_buffer(32)
-    if ReadProcessMemory(h_process, ctypes.c_void_p(address), key, 32, 0) == 0: return None
-    key_string = bytes(key).hex()
-    return key_string
-
-
 def get_memory_maps(pid):
     # 打开进程
     access = PROCESS_QUERY_INFORMATION | PROCESS_VM_READ

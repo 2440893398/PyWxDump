@@ -6,9 +6,9 @@
 # Date:         2023/10/14
 # -------------------------------------------------------------------------------
 import argparse
-import json
 import os
 import sys
+import json
 
 from pywxdump import *
 import pywxdump
@@ -113,7 +113,7 @@ class MainBiasAddr(BaseSubMainClass):
         parser.add_argument("--account", type=str, help="微信账号", metavar="", required=True)
         parser.add_argument("--key", type=str, metavar="", help="(可选)密钥")
         parser.add_argument("--db_path", type=str, metavar="", help="(可选)已登录账号的微信文件夹路径")
-        parser.add_argument("-vlp", '--version_list_path', type=str, metavar="",
+        parser.add_argument("-vlp", '--WX_OFFS_PATH', type=str, metavar="",
                             help="(可选)微信版本偏移文件路径,如有，则自动更新",
                             default=None)
 
@@ -127,7 +127,7 @@ class MainBiasAddr(BaseSubMainClass):
         account = args.account
         key = args.key
         db_path = args.db_path
-        vlp = args.version_list_path
+        vlp = args.WX_OFFS_PATH
         # 调用 run 函数，并传入参数
         rdata = BiasAddr(account, mobile, name, key, db_path).run(True, vlp)
         return rdata
@@ -139,18 +139,18 @@ class MainWxInfo(BaseSubMainClass):
 
     def init_parses(self, parser):
         # 添加 'wx_info' 子命令解析器
-        parser.add_argument("-vlp", '--version_list_path', metavar="", type=str,
-                            help="(可选)微信版本偏移文件路径", default=VERSION_LIST_PATH)
+        parser.add_argument("-vlp", '--WX_OFFS_PATH', metavar="", type=str,
+                            help="(可选)微信版本偏移文件路径", default=WX_OFFS_PATH)
         parser.add_argument("-s", '--save_path', metavar="", type=str, help="(可选)保存路径【json文件】")
         return parser
 
     def run(self, args):
         print(f"[*] PyWxDump v{pywxdump.__version__}")
         # 读取微信各版本偏移
-        path = args.version_list_path
+        path = args.WX_OFFS_PATH
         save_path = args.save_path
-        version_list = json.load(open(path, "r", encoding="utf-8"))
-        result = read_info(version_list, True, save_path)  # 读取微信信息
+        WX_OFFS = json.load(open(path, "r", encoding="utf-8"))
+        result = get_wx_info(WX_OFFS, True, save_path)  # 读取微信信息
         return result
 
 
@@ -160,9 +160,9 @@ class MainWxDbPath(BaseSubMainClass):
 
     def init_parses(self, parser):
         # 添加 'wx_db_path' 子命令解析器
-        parser.add_argument("-r", "--require_list", type=str,
+        parser.add_argument("-r", "--db_types", type=str,
                             help="(可选)需要的数据库名称(eg: -r MediaMSG;MicroMsg;FTSMSG;MSG;Sns;Emotion )",
-                            default="all", metavar="")
+                            default=None, metavar="")
         parser.add_argument("-wf", "--wx_files", type=str, help="(可选)'WeChat Files'路径", default=None,
                             metavar="")
         parser.add_argument("-id", "--wxid", type=str, help="(可选)wxid_,用于确认用户文件夹",
@@ -170,13 +170,14 @@ class MainWxDbPath(BaseSubMainClass):
         return parser
 
     def run(self, args):
+        print(f"[*] PyWxDump v{pywxdump.__version__}")
         # 从命令行参数获取值
-        require_list = args.require_list
+        db_types = args.db_types
         msg_dir = args.wx_files
         wxid = args.wxid
-
-        user_dirs = get_wechat_db(require_list, msg_dir, wxid, True)  # 获取微信数据库路径
-        return user_dirs
+        ret = get_wx_db(msg_dir=msg_dir, db_types=db_types, wxids=wxid)
+        for i in ret: print(i)
+        return ret
 
 
 class MainDecrypt(BaseSubMainClass):
@@ -249,7 +250,7 @@ class MainMerge(BaseSubMainClass):
             print(f"[+] 创建输出文件夹：{out_path}")
 
         print(f"[*] 合并中...（用时较久，耐心等待）")
-
+        dbpaths = [{"db_path": i} for i in dbpaths if os.path.exists(i)]  # 去除不存在的路径
         result = merge_db(dbpaths, out_path)
 
         print(f"[+] 合并完成：{result}")
@@ -326,8 +327,9 @@ class MainShowChatRecords(BaseSubMainClass):
         # 从命令行参数获取值
         if not AttachmentContext.exists(server_config.merge_path):
             print("[-] 输入数据库路径不存在")
-            return False
-        return True
+            return
+
+        start_server(merge_path=merge_path, wx_path=args.wx_path, my_wxid=args.my_wxid, online=online)
 
 
 class MainExportChatRecords(BaseSubMainClass):
@@ -365,7 +367,7 @@ class MainUi(BaseSubMainClass):
         parser.add_argument("-p", '--port', metavar="", type=int, help="(可选)端口号", default=5000)
         parser.add_argument("--online", help="(可选)是否在线查看(局域网查看)", default=False, action='store_true')
         parser.add_argument("--debug", help="(可选)是否开启debug模式", default=False, action='store_true')
-        parser.add_argument("--noOpenBrowser", dest='isOpenBrowser', action='store_false', default=True,
+        parser.add_argument("--noOpenBrowser", dest='isOpenBrowser', default=True, action='store_false',
                             help="(可选)用于禁用自动打开浏览器")
         return parser
 
@@ -383,7 +385,7 @@ class MainUi(BaseSubMainClass):
         server_config.port(port)
         server_config.online(online)
 
-        start_falsk(server_config.build())
+        start_server(port=port, online=online, debug=debug, isopenBrowser=isopenBrowser)
 
 
 class MainApi(BaseSubMainClass):
@@ -410,7 +412,7 @@ class MainApi(BaseSubMainClass):
         server_config.is_open_browser(False)
         server_config.online(online)
 
-        start_falsk(server_config.build())
+        start_server(port=port, online=online, debug=debug, isopenBrowser=False)
 
 
 def console_run():

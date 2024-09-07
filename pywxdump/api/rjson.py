@@ -1,4 +1,8 @@
 import logging
+import os
+import traceback
+
+loger_rjson = logging.getLogger("rjson")
 
 
 def ReJson(code: int, body: [dict, list] = None, msg: str = None, error: str = None, extra: dict = None) -> dict:
@@ -30,14 +34,19 @@ def ReJson(code: int, body: [dict, list] = None, msg: str = None, error: str = N
         9999: {'code': 9999, 'body': body, 'msg': "未知错误！", "extra": extra},
     }
     rjson = situation.get(code, {'code': 9999, 'body': None, 'msg': "code错误", "extra": {}})
-    if code != 0:
-        logging.warning(f"\n{code} \n{rjson['body']}\n{msg if msg else None}")
     if body:
         rjson['body'] = body
     if msg:
         rjson['msg'] = msg
+    if code != 0:
+        stack = traceback.extract_stack()
+        project_stack = [frame for frame in stack]
+        # 格式化调用栈信息
+        formatted_stack = ''.join(traceback.format_list(project_stack))
+        # stack_trace = ''.join(traceback.format_stack())
+        loger_rjson.warning(f"\n{code=}\n{rjson['body']=}\n{rjson['msg']=}\n{rjson['extra']=}\n{formatted_stack}")
     if error:
-        logging.error(error)
+        loger_rjson.error(error, exc_info=True)
     return rjson
 
 
