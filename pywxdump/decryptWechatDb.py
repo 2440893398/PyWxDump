@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 # 解密微信数据库
 def decrypt_wechat_db(key, db_path, output_path):
-    code, merge_save_path = decrypt_merge(db_path,key, output_path, True)
+    code, merge_save_path = decrypt_merge(db_path, key, output_path, is_merge_data= True)
     if code:
         # 删除合并前的解密数据库文件
         out_path = os.path.join(output_path, "decrypted")
@@ -86,14 +86,14 @@ def clean_decrypted_files(output_path):
 
 # 主函数
 def main():
-    # wechat_id = "wxid_fhded1nyrrdr22"
-    # wechat_secret_key = 'd1aec8085bc14d6da0ded5c2a8ce6ee3057b90551f56476aaf98278f22db14af'
-    # wechat_db_path = 'C:\\Users\\24408\\Documents\\WeChat Files\\wxid_fhded1nyrrdr22'
+    wechat_id = "wxid_fhded1nyrrdr22"
+    wechat_secret_key = 'd1aec8085bc14d6da0ded5c2a8ce6ee3057b90551f56476aaf98278f22db14af'
+    wechat_db_path = 'C:\\Users\\24408\\Documents\\WeChat Files\\wxid_fhded1nyrrdr22'
 
 
-    wechat_id = "wxid_rbdv29hm552s22"
-    wechat_secret_key = '759fd87ca9cd4b3cba596628ad20cdf464657e40a2554a9881682e73ffbf1c94'
-    wechat_db_path = 'C:\\Users\\24408\\Documents\\WeChat Files\\wxid_rbdv29hm552s22'
+    # wechat_id = "wxid_rbdv29hm552s22"
+    # wechat_secret_key = '759fd87ca9cd4b3cba596628ad20cdf464657e40a2554a9881682e73ffbf1c94'
+    # wechat_db_path = 'C:\\Users\\24408\\Documents\\WeChat Files\\wxid_rbdv29hm552s22'
     # 将解密后的文件保存到临时目录
     decrypted_output_dir = tempfile.gettempdir()+os.sep+'wechat_decrypted_files'
     if not os.path.exists(decrypted_output_dir):

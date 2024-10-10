@@ -1,10 +1,9 @@
-import json
 import unittest
 from unittest.mock import patch
 
 from pywxdump.dbpreprocess.dbbase import DatabaseBase
-from pywxdump.dbpreprocess.fts.impl.parsingFTSMsg import ParsingFTSMsg
-from pywxdump.api.search.vo.aggregate_search_vo import SearchResultItem, AggregateSearchVo
+from pywxdump.db.fts.impl.parsingFTSMsg import ParsingFTSMsg
+from pywxdump.db.fts.vo.aggregate_search_vo import SearchResultItem
 
 
 class TestParsingFTSMsg(unittest.TestCase):

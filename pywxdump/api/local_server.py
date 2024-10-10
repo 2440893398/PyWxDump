@@ -18,6 +18,9 @@ from pywxdump import get_wx_info, batch_decrypt, BiasAddr, merge_db, decrypt_mer
 
 from .rjson import ReJson, RqJson
 from .utils import error9999, ls_loger, random_str, gc
+from ..common.config.oss_config.storage_config_factory import StorageConfigFactory
+from ..common.config.oss_config_manager import OSSConfigManager
+from ..file import AttachmentContext
 
 ls_api = APIRouter()
 
@@ -55,6 +58,9 @@ def init_last(my_wxid: str = Body(..., embed=True)):
         merge_path = gc.get_conf(my_wxid, "merge_path")
         wx_path = gc.get_conf(my_wxid, "wx_path")
         key = gc.get_conf(my_wxid, "key")
+        # 如果有oss_config则设置对象存储配置
+        oss_config = gc.get_conf(my_wxid, "oss_config")
+        ossConfig(oss_config)
         rdata = {
             "merge_path": merge_path,
             "wx_path": wx_path,
@@ -66,6 +72,17 @@ def init_last(my_wxid: str = Body(..., embed=True)):
             return ReJson(0, rdata)
     return ReJson(0, {"is_init": False, "my_wxid": ""})
 
+def ossConfig(oss_config: str):
+    """
+    设置对象存储配置
+
+    :param oss_config: 对象存储配置
+
+    :return: None
+    """
+    if oss_config:
+        storageConfig = StorageConfigFactory.create(oss_config)
+        OSSConfigManager().load_config(storageConfig)
 
 class InitKeyRequest(BaseModel):
     wx_path: str
@@ -86,7 +103,7 @@ def init_key(request: InitKeyRequest):
     my_wxid = request.my_wxid.strip().strip("'").strip('"')
     if not wx_path:
         return ReJson(1002, body=f"wx_path is required: {wx_path}")
-    if not os.path.exists(wx_path):
+    if not AttachmentContext.exists(wx_path):
         return ReJson(1001, body=f"wx_path not exists: {wx_path}")
     if not key:
         return ReJson(1002, body=f"key is required: {key}")
@@ -94,13 +111,16 @@ def init_key(request: InitKeyRequest):
         return ReJson(1002, body=f"my_wxid is required: {my_wxid}")
 
     # db_config = get_conf(g.caf, my_wxid, "db_config")
-    # if isinstance(db_config, dict) and db_config and os.path.exists(db_config.get("path")):
+    # if isinstance(db_config, dict) and db_config and AttachmentContext.exists(db_config.get("path")):
     #     pmsg = DBHandler(db_config)
     #     # pmsg.close_all_connection()
+    # 如果有oss_config则设置对象存储配置
+    oss_config = gc.get_conf(my_wxid, "oss_config")
+    ossConfig(oss_config)
 
     out_path = os.path.join(gc.work_path, "decrypted", my_wxid) if my_wxid else os.path.join(gc.work_path, "decrypted")
     # 检查文件夹中文件是否被占用
-    if os.path.exists(out_path):
+    if AttachmentContext.exists(out_path):
         try:
             shutil.rmtree(out_path)
         except PermissionError as e:
@@ -112,13 +132,13 @@ def init_key(request: InitKeyRequest):
     time.sleep(1)
     if code:
         # 移动merge_save_path到g.work_path/my_wxid
-        if not os.path.exists(os.path.join(gc.work_path, my_wxid)):
-            os.makedirs(os.path.join(gc.work_path, my_wxid))
+        if not AttachmentContext.exists(os.path.join(gc.work_path, my_wxid)):
+            AttachmentContext.makedirs(os.path.join(gc.work_path, my_wxid))
         merge_save_path_new = os.path.join(gc.work_path, my_wxid, "merge_all.db")
         shutil.move(merge_save_path, str(merge_save_path_new))
 
         # 删除out_path
-        if os.path.exists(out_path):
+        if AttachmentContext.exists(out_path):
             try:
                 shutil.rmtree(out_path)
             except PermissionError as e:
@@ -152,6 +172,7 @@ class InitNoKeyRequest(BaseModel):
     merge_path: str
     wx_path: str
     my_wxid: str
+    oss_config: str = ""
 
 
 @ls_api.post('/init_nokey')
@@ -164,10 +185,12 @@ def init_nokey(request: InitNoKeyRequest):
     merge_path = request.merge_path.strip().strip("'").strip('"')
     wx_path = request.wx_path.strip().strip("'").strip('"')
     my_wxid = request.my_wxid.strip().strip("'").strip('"')
-
+    # 如果有oss_config则设置对象存储配置
+    oss_config = request.oss_config.strip().strip("'").strip('"')
+    ossConfig(oss_config)
     if not wx_path:
         return ReJson(1002, body=f"wx_path is required: {wx_path}")
-    if not os.path.exists(wx_path):
+    if not AttachmentContext.exists(wx_path):
         return ReJson(1001, body=f"wx_path not exists: {wx_path}")
     if not merge_path:
         return ReJson(1002, body=f"merge_path is required: {merge_path}")
@@ -194,6 +217,33 @@ def init_nokey(request: InitNoKeyRequest):
         "is_init": True,
     }
     return ReJson(0, rdata)
+
+
+class CheckStorageTypeRequest(BaseModel):
+    path: str
+
+
+# 查询支持的对象存储，及配置
+@ls_api.api_route('/api/check_storage_type', methods=["GET", 'POST'])
+@error9999
+def check_storage_type(request: CheckStorageTypeRequest):
+    """
+    查询支持的对象存储，及配置
+    :return: 0:支持，1:不支持
+    """
+    path = request.json.get("path", "").strip().strip("'").strip('"')
+    if not path:
+        return ReJson(1002, body=f"path is required: {path}")
+
+    selectStorageConfig = None
+    for key, storageConfig in StorageConfigFactory.registry.items():
+        if storageConfig.isSupported(path):
+            selectStorageConfig = storageConfig
+    if selectStorageConfig:
+        return ReJson(0, {"is_supported": True, "storage_type": selectStorageConfig.type(),
+                          "config_items": selectStorageConfig.describe()})
+    else:
+        return ReJson(0, {"is_supported": False})
 
 
 # END 以上为初始化相关 ***************************************************************************************************

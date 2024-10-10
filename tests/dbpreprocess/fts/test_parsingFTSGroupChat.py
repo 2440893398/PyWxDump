@@ -1,10 +1,8 @@
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-from pywxdump.common.fts.FTSType import FTSType
 from pywxdump.dbpreprocess.dbbase import DatabaseBase
-from pywxdump.api.search.vo.aggregate_search_vo import AggregateSearchVo
-from pywxdump.dbpreprocess.fts.impl.parsingFTSGroupChat import ParsingFTSGroupChat
+from pywxdump.db.fts.impl.parsingFTSGroupChat import ParsingFTSGroupChat
 
 
 class TestParsingFTSContact(unittest.TestCase):

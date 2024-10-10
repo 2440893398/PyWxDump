@@ -27,6 +27,44 @@ class TestSqlglotUtils(unittest.TestCase):
         tree = parse_one(sql)
         self.assertEqual(SqlglotUtils.get_group_fields(tree), [])
 
+    def test_single_order_by_asc(self):
+        sql = "SELECT * FROM table_name ORDER BY field1 ASC"
+        sql_tree = parse_one(sql)
+        result = SqlglotUtils.multi_key_sort(sql_tree)
+        expected = [('field1', 'asc')]
+        self.assertEqual(result, expected)
+
+    def test_single_order_by_desc(self):
+        sql = "SELECT * FROM table_name ORDER BY field1 DESC"
+        sql_tree = parse_one(sql)
+        result = SqlglotUtils.multi_key_sort(sql_tree)
+        expected = [('field1', 'desc')]
+        self.assertEqual(result, expected)
+
+    def test_multiple_order_by(self):
+        sql = "SELECT * FROM table_name ORDER BY field1 ASC, field2 DESC"
+        sql_tree = parse_one(sql)
+        result = SqlglotUtils.multi_key_sort(sql_tree)
+        expected = [('field1', 'asc'), ('field2', 'desc')]
+        self.assertEqual(result, expected)
+
+    def test_no_order_by(self):
+        sql = "SELECT * FROM table_name"
+        sql_tree = parse_one(sql)
+        result = SqlglotUtils.multi_key_sort(sql_tree)
+        expected = []
+        self.assertEqual(result, expected)
+
+    def test_mixed_order_by_with_functions(self):
+        # Test with functions or expressions in the ORDER BY for comprehensiveness
+        sql = "SELECT * FROM table_name ORDER BY field1 + 1 DESC, UPPER(field2) ASC"
+        sql_tree = parse_one(sql)
+        result = SqlglotUtils.multi_key_sort(sql_tree)
+        # Depending on the SQL parsing library capabilities,
+        # this might need to be adjusted for proper parsing of expressions
+        expected = [("field1 + 1", 'desc'), ("UPPER(field2)", 'asc')]
+        self.assertEqual(result, expected)
+
     def test_get_select_fields_single_column(self):
         sql = "SELECT column1 FROM table"
         tree = parse_one(sql)

@@ -7,21 +7,24 @@ from pywxdump.common.tools.custom_sqlite import CustomSQLite
 
 class SqlglotUtils:
     _multi_table = {"FTSMSG", "MediaMSG", "MSG"}
+    _multi_base_delimiter = "__"
 
     @staticmethod
     def exist_multi_base(tree):
         """
-        判断是否存在分表查询
+        判断是否存在分库表
 
         :param tree: 语法树
-        :return: 是否存在分表查询
+        :return: 是否存在多表查询
         """
         multi_tables = []
 
         for node in tree.walk():
             if isinstance(node, Table):
-                if node.name in SqlglotUtils._multi_table:
-                    multi_tables.append(node.name)
+                base = node.name.split(SqlglotUtils._multi_base_delimiter)
+                if len(base) > 1:
+                    if base[0] in SqlglotUtils._multi_table:
+                        multi_tables.append(node.name)
         return len(multi_tables) > 0, multi_tables
 
     @staticmethod
@@ -62,10 +65,36 @@ class SqlglotUtils:
 
         def remove_limit(node):
             if isinstance(node, Limit) or isinstance(node, Offset):
-                return node.args['expression']
+                return None
             return node
 
         return sqlTree.transform(remove_limit)
+
+    @staticmethod
+    def multi_key_sort(sqlTree):
+        """
+        根据多个 ORDER BY 字段及其方向返回排序键。
+
+        :param sqlTree: 语法树
+
+        :return: 排序键 [('field1', 'asc'), ('field2', 'desc')]
+        """
+        order_fields = []
+
+        # 使用 sqlglot 的方法查找 ORDER BY 子句
+        order = sqlTree.find(sqlglot.expressions.Order)
+
+        if order:
+            # 遍历 ORDER BY 子句中的每个排序项
+            for expression in order.expressions:
+                # 获取字段名
+                field = SqlglotUtils.sql(expression.this)
+                # 获取排序方向（升序/降序）
+                direction = 'asc' if not expression.args['desc'] else 'desc'
+                # 添加字段和排序方向到 order_fields 列表中
+                order_fields.append((field, direction))
+
+        return order_fields
 
     @staticmethod
     def get_select_fields_name(sqlTree, is_ignore_alias=False):

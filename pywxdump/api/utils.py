@@ -151,7 +151,7 @@ def get_conf_local_wxid(conf_file):
 
 def get_conf(conf_file, wxid, arg):
     try:
-        with AttachmentContext.open_file(conf_file, 'r') as f:
+        with AttachmentContext.open(conf_file, 'r') as f:
             conf = json.load(f)
     except FileNotFoundError:
         logging.error(f"Session file not found: {conf_file}")
@@ -164,7 +164,7 @@ def get_conf(conf_file, wxid, arg):
 
 def get_conf_wxids(conf_file):
     try:
-        with AttachmentContext.open_file(conf_file, 'r') as f:
+        with AttachmentContext.open(conf_file, 'r') as f:
             conf = json.load(f)
     except FileNotFoundError:
         logging.error(f"Session file not found: {conf_file}")
@@ -177,7 +177,7 @@ def get_conf_wxids(conf_file):
 
 def set_conf(conf_file, wxid, arg, value):
     try:
-        with AttachmentContext.open_file(conf_file, 'r') as f:
+        with AttachmentContext.open(conf_file, 'r') as f:
             conf = json.load(f)
     except FileNotFoundError:
         conf = {}
@@ -191,7 +191,7 @@ def set_conf(conf_file, wxid, arg, value):
         conf[wxid] = {}
     conf[wxid][arg] = value
     try:
-        with AttachmentContext.open_file(conf_file, 'w') as f:
+        with AttachmentContext.open(conf_file, 'w') as f:
             json.dump(conf, f, indent=4, ensure_ascii=False)
     except Exception as e:
         logging.error(f"Error writing to file: {e}")
@@ -260,7 +260,7 @@ def gen_base64(path):
     else:
         start_str = 'data:text/plain;base64,'
 
-    with AttachmentContext.open_file(path, 'rb') as file:
+    with AttachmentContext.open(path, 'rb') as file:
         js_code = file.read()
 
     base64_encoded_js = base64.b64encode(js_code).decode('utf-8')

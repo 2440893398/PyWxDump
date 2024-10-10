@@ -11,20 +11,20 @@ from .utils import silk2audio
 
 class MediaHandler(DatabaseBase):
     _class_name = "MediaMSG"
-    Media_required_tables = ["Media"]
+    Media_required_tables = ["MediaMSG__Media"]
 
     def Media_add_index(self):
         """
         添加索引, 加快查询速度
         """
-        if self.tables_exist("Media"):
-            self.execute("CREATE INDEX IF NOT EXISTS MsgSvrID ON Media(Reserved0)")
+        if self.tables_exist("MediaMSG*__Media"):
+            self.execute("CREATE INDEX IF NOT EXISTS MsgSvrID ON MediaMSG__Media(Reserved0)")
 
     def get_audio(self, MsgSvrID, is_play=False, is_wave=False, save_path=None, rate=24000):
-        if not self.tables_exist("Media"):
+        if not self.tables_exist("MediaMSG*__Media"):
             return False
 
-        sql = "select Buf from Media where Reserved0=? "
+        sql = "select Buf from MediaMSG__Media where Reserved0=? "
         DBdata = self.execute(sql, (MsgSvrID,))
         if not DBdata:
             return False
@@ -35,4 +35,5 @@ class MediaHandler(DatabaseBase):
             pcm_data = silk2audio(buf_data=data, is_play=is_play, is_wave=is_wave, save_path=save_path, rate=rate)
             return pcm_data
         except Exception as e:
+            print(f"Error in silk2audio: {e}")
             return False

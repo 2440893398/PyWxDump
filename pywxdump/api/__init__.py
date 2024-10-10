@@ -14,6 +14,7 @@ import mimetypes
 import logging
 from logging.handlers import RotatingFileHandler
 
+from colorlog import colorlog
 from fastapi import FastAPI, Request, Path, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +27,7 @@ from .remote_server import rs_api
 from .local_server import ls_api
 
 from pywxdump import __version__
+from ..common.config.server_config import ServerConfig
 
 
 def gen_fastapi_app(handler):
@@ -106,16 +108,13 @@ def gen_fastapi_app(handler):
     return app
 
 
-def start_server(port=5000, online=False, debug=False, isopenBrowser=True,
-                 merge_path="", wx_path="", my_wxid="", ):
+def start_server(server_config: ServerConfig):
     """
     启动flask
-    :param port:  端口号
-    :param online:  是否在线查看(局域网查看)
-    :param debug:  是否开启debug模式
-    :param isopenBrowser:  是否自动打开浏览器
+    : server_config 启动配置
     :return:
     """
+    init_logger()
     work_path = os.path.join(os.getcwd(), "wxdump_work")  # 临时文件夹,用于存放图片等    # 全局变量
     if not os.path.exists(work_path):
         os.makedirs(work_path, exist_ok=True)
@@ -151,27 +150,29 @@ def start_server(port=5000, online=False, debug=False, isopenBrowser=True,
         f.write(f"PYWXDUMP_CONF_FILE = '{conf_file}'\n")
         f.write(f"PYWXDUMP_AUTO_SETTING = '{auto_setting}'\n")
 
-    if merge_path and os.path.exists(merge_path):
-        my_wxid = my_wxid if my_wxid else "wxid_dbshow"
+    if server_config.merge_path and os.path.exists(server_config.merge_path):
+        my_wxid = server_config.my_wxid if server_config.my_wxid else "wxid_dbshow"
         gc.set_conf(my_wxid, "wxid", my_wxid)  # 初始化wxid
-        gc.set_conf(my_wxid, "merge_path", merge_path)  # 初始化merge_path
-        gc.set_conf(my_wxid, "wx_path", wx_path)  # 初始化wx_path
-        db_config = {"key": my_wxid, "type": "sqlite", "path": merge_path}
+        gc.set_conf(my_wxid, "merge_path", server_config.merge_path)  # 初始化merge_path
+        gc.set_conf(my_wxid, "wx_path", server_config.wx_path)  # 初始化wx_path
+        gc.set_conf(my_wxid, "oss_config", server_config.oss_config_to_json())  # 初始化wx_path
+        db_config = {"key": my_wxid, "type": "sqlite", "path": server_config.merge_path}
         gc.set_conf(my_wxid, "db_config", db_config)  # 初始化db_config
         gc.set_conf(auto_setting, "last", my_wxid)  # 初始化last
 
     # 检查端口是否被占用
-    if online:
+    if server_config.online:
         host = '0.0.0.0'
     else:
         host = "127.0.0.1"
 
+    port = server_config.port
     if is_port_in_use(host, port):
         server_loger.error(f"Port {port} is already in use. Choose a different port.")
         print(f"Port {port} is already in use. Choose a different port.")
         input("Press Enter to exit...")
         return  # 退出程序
-    if isopenBrowser:
+    if server_config.is_open_browser:
         try:
             # 自动打开浏览器
             url = f"http://127.0.0.1:{port}/"
@@ -193,7 +194,41 @@ def start_server(port=5000, online=False, debug=False, isopenBrowser=True,
     print("[+] 请使用浏览器访问 http://127.0.0.1:5000/ 查看聊天记录")
     global app
     app = gen_fastapi_app(file_handler)
-    uvicorn.run(app=app, host=host, port=port, reload=debug, log_level="info", workers=1, env_file=env_file)
+    uvicorn.run(app=app, host=host, port=port, reload=server_config.debug, log_level="info", workers=1,
+                env_file=env_file)
+
+
+def init_logger(level=logging.INFO):
+    """
+    获取logger对象 https://www.cnblogs.com/Flat-White/p/17255337.html
+    :param level: 日志级别
+    :return: logger对象
+    """
+    # 创建logger对象
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    # 创建控制台日志处理器
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(level)
+    # 定义颜色输出格式
+    color_formatter = colorlog.ColoredFormatter(
+        '%(log_color)s%(levelname)s: %(message)s',
+        log_colors={
+            'DEBUG': 'cyan',
+            'INFO': 'green',
+            'WARNING': 'yellow',
+            'ERROR': 'red',
+            'CRITICAL': 'red,bg_white',
+        }
+    )
+    # 将颜色输出格式添加到控制台日志处理器
+    console_handler.setFormatter(color_formatter)
+    # 移除默认的handler
+    for handler in logger.handlers:
+        logger.removeHandler(handler)
+    # 将控制台日志处理器添加到logger对象
+    logger.addHandler(console_handler)
+    return logger
 
 
 app = None

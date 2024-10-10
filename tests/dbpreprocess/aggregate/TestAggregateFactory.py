@@ -11,7 +11,7 @@ class TestAggregateFactory(unittest.TestCase):
         sql = "select group1, value from table "
         tree = parse_one(sql)
 
-        result = AggregateStrategyFactory.getFieldAggregates(tree)
+        result = AggregateStrategyFactory.get_field_aggregates(tree)
 
         self.assertEqual(result, {})
 
@@ -19,7 +19,7 @@ class TestAggregateFactory(unittest.TestCase):
         sql = "select count(group1), count(value) from table "
         tree = parse_one(sql)
 
-        result = AggregateStrategyFactory.getFieldAggregates(tree)
+        result = AggregateStrategyFactory.get_field_aggregates(tree)
 
         self.assertEqual(len(result), 2)
         self.assertIn(0, result)
@@ -29,7 +29,7 @@ class TestAggregateFactory(unittest.TestCase):
         sql = "select cll(group1), value from table "
         tree = parse_one(sql)
 
-        result = AggregateStrategyFactory.getFieldAggregates(tree)
+        result = AggregateStrategyFactory.get_field_aggregates(tree)
 
         self.assertEqual(result, {})
 

@@ -5,16 +5,18 @@
 # Author:       xaoyaoo
 # Date:         2024/01/02
 # -------------------------------------------------------------------------------
+import logging
 import os
 import time
 import shutil
+import traceback
 from collections import Counter
 from urllib.parse import quote, unquote
 from typing import List, Optional
 
 from pydantic import BaseModel
-from fastapi import APIRouter, Response, Body, Query, Request
-from starlette.responses import StreamingResponse, FileResponse
+from fastapi import APIRouter, Response, Body, Request
+from starlette.responses import StreamingResponse
 
 import pywxdump
 from pywxdump import decrypt_merge, get_core_db
@@ -22,8 +24,11 @@ from pywxdump.db import DBHandler
 from pywxdump.db.utils import download_file, dat2img
 
 from .export import export_csv, export_json, export_html
-from .rjson import ReJson, RqJson
-from .utils import error9999, gc, asyncError9999, rs_loger
+from .rjson import ReJson, ok
+from .utils import error9999, gc, asyncError9999
+from pywxdump.db.fts.enums.QueryMsgCategory import QueryMsgCategory
+from ..db.fts.dto.msg_by_query_dto import MsgByQuery
+from ..file import AttachmentContext
 
 rs_api = APIRouter()
 
@@ -127,7 +132,8 @@ def msg_count(wxids: Optional[List[str]] = Body(..., embed=True)):
 
 @rs_api.api_route('/msg_list', methods=["GET", 'POST'])
 @error9999
-def get_msgs(wxid: str = Body(...), start: int = Body(...), limit: int = Body(...)):
+def get_msgs(wxid: str = Body(...), start: int = Body(...), limit: int = Body(...),
+             direction: str = Body("down", embed=True)):
     """
     获取联系人的聊天记录
     :return:
@@ -138,7 +144,7 @@ def get_msgs(wxid: str = Body(...), start: int = Body(...), limit: int = Body(..
     db_config = gc.get_conf(my_wxid, "db_config")
 
     db = DBHandler(db_config, my_wxid=my_wxid)
-    msgs, users = db.get_msgs(wxids=wxid, start_index=start, page_size=limit)
+    msgs, users = db.get_msgs(wxids=wxid, start_index=start, page_size=limit, direction=direction)
     return ReJson(0, {"msg_list": msgs, "user_list": users})
 
 
@@ -161,18 +167,18 @@ async def get_imgsrc(request: Request):
 
         img_path = imgsrc.replace("\\\\", "\\")
 
-        img_tmp_path = os.path.join(gc.work_path, my_wxid, "img")
-        original_img_path = os.path.join(wx_path, img_path)
-        if os.path.exists(original_img_path):
+        img_tmp_path = AttachmentContext.join(gc.work_path, my_wxid, "img")
+        original_img_path = AttachmentContext.join(wx_path, img_path)
+        if AttachmentContext.exists(original_img_path):
             rc, fomt, md5, out_bytes = dat2img(original_img_path)
             if not rc:
                 return ReJson(1001, body=original_img_path)
-            imgsavepath = os.path.join(str(img_tmp_path), img_path + "_" + "".join([md5, fomt]))
-            if os.path.exists(imgsavepath):
-                return FileResponse(imgsavepath)
-            if not os.path.exists(os.path.dirname(imgsavepath)):
-                os.makedirs(os.path.dirname(imgsavepath))
-            with open(imgsavepath, "wb") as f:
+            imgsavepath = AttachmentContext.join(str(img_tmp_path), img_path + "_" + "".join([md5, fomt]))
+            if AttachmentContext.exists(imgsavepath):
+                return AttachmentContext.send_attachment(imgsavepath)
+            if not AttachmentContext.exists(AttachmentContext.dirname(imgsavepath)):
+                AttachmentContext.makedirs(AttachmentContext.dirname(imgsavepath))
+            with AttachmentContext.open(imgsavepath, "wb") as f:
                 f.write(out_bytes)
             return Response(content=out_bytes, media_type="image/jpeg")
         else:
@@ -183,18 +189,18 @@ async def get_imgsrc(request: Request):
         my_wxid = gc.get_conf(gc.at, "last")
         if not my_wxid: return ReJson(1001, body="my_wxid is required")
 
-        img_tmp_path = os.path.join(gc.work_path, my_wxid, "imgsrc")
-        if not os.path.exists(img_tmp_path):
-            os.makedirs(img_tmp_path)
+        img_tmp_path = AttachmentContext.join(gc.work_path, my_wxid, "imgsrc")
+        if not AttachmentContext.exists(img_tmp_path):
+            AttachmentContext.makedirs(img_tmp_path)
         file_name = imgsrc.replace("http://", "").replace("https://", "").replace("/", "_").replace("?", "_")
         file_name = file_name + ".jpg"
         # 如果文件名过长，则将文件明分为目录和文件名
         if len(file_name) > 255:
             file_name = file_name[:255] + "/" + file_name[255:]
 
-        img_path_all = os.path.join(str(img_tmp_path), file_name)
-        if os.path.exists(img_path_all):
-            return FileResponse(img_path_all)
+        img_path_all = AttachmentContext.join(str(img_tmp_path), file_name)
+        if AttachmentContext.exists(img_path_all):
+            return AttachmentContext.send_attachment(img_path_all)
         else:
             # proxies = {
             #     "http": "http://127.0.0.1:10809",
@@ -202,8 +208,8 @@ async def get_imgsrc(request: Request):
             # }
             proxies = None
             download_file(imgsrc, img_path_all, proxies=proxies)
-            if os.path.exists(img_path_all):
-                return FileResponse(img_path_all)
+            if AttachmentContext.exists(img_path_all):
+                return AttachmentContext.send_attachment(img_path_all)
             else:
                 return ReJson(4004, body=imgsrc)
     else:
@@ -225,19 +231,19 @@ def get_video(request: Request):
 
     videoPath = videoPath.replace("\\\\", "\\")
 
-    video_tmp_path = os.path.join(gc.work_path, my_wxid, "video")
-    original_img_path = os.path.join(wx_path, videoPath)
-    if not os.path.exists(original_img_path):
+    video_tmp_path = AttachmentContext.join(gc.work_path, my_wxid, "video")
+    original_img_path = AttachmentContext.join(wx_path, videoPath)
+    if not AttachmentContext.exists(original_img_path):
         return ReJson(5002)
     # 复制文件到临时文件夹
     assert isinstance(video_tmp_path, str)
-    video_save_path = os.path.join(video_tmp_path, videoPath)
-    if not os.path.exists(os.path.dirname(video_save_path)):
-        os.makedirs(os.path.dirname(video_save_path))
-    if os.path.exists(video_save_path):
-        return FileResponse(path=video_save_path)
+    video_save_path = AttachmentContext.join(video_tmp_path, videoPath)
+    if not AttachmentContext.exists(AttachmentContext.dirname(video_save_path)):
+        AttachmentContext.makedirs(AttachmentContext.dirname(video_save_path))
+    if AttachmentContext.exists(video_save_path):
+        return AttachmentContext.send_attachment(path=video_save_path)
     shutil.copy(original_img_path, video_save_path)
-    return FileResponse(path=video_save_path)
+    return AttachmentContext.send_attachment(path=video_save_path)
 
 
 @rs_api.api_route('/audio', methods=["GET", 'POST'])
@@ -253,27 +259,27 @@ def get_audio(request: Request):
     if not my_wxid: return ReJson(1001, body="my_wxid is required")
     db_config = gc.get_conf(my_wxid, "db_config")
 
-    savePath = os.path.join(gc.work_path, my_wxid, "audio", savePath)  # 这个是从url中获取的
-    if os.path.exists(savePath):
+    savePath = AttachmentContext.join(gc.work_path, my_wxid, "audio", savePath)  # 这个是从url中获取的
+    if AttachmentContext.exists(savePath):
         assert isinstance(savePath, str)
-        return FileResponse(path=savePath, media_type='audio/mpeg')
+        return AttachmentContext.send_attachment(path=savePath, media_type='audio/mpeg')
 
     MsgSvrID = savePath.split("_")[-1].replace(".wav", "")
     if not savePath:
         return ReJson(1002)
 
     # 判断savePath路径的文件夹是否存在
-    if not os.path.exists(os.path.dirname(savePath)):
-        os.makedirs(os.path.dirname(savePath))
+    if not AttachmentContext.exists(AttachmentContext.dirname(savePath)):
+        AttachmentContext.makedirs(AttachmentContext.dirname(savePath))
 
     db = DBHandler(db_config, my_wxid=my_wxid)
     wave_data = db.get_audio(MsgSvrID, is_play=False, is_wave=True, save_path=savePath, rate=24000)
     if not wave_data:
         return ReJson(1001, body="wave_data is required")
 
-    if os.path.exists(savePath):
+    if AttachmentContext.exists(savePath):
         assert isinstance(savePath, str)
-        return FileResponse(path=savePath, media_type='audio/mpeg')
+        return AttachmentContext.send_attachment(path=savePath, media_type='audio/mpeg')
     else:
         return ReJson(4004, body=savePath)
 
@@ -287,8 +293,8 @@ def get_file_info(file_path: str = Body(..., embed=True)):
     if not my_wxid: return ReJson(1001, body="my_wxid is required")
     wx_path = gc.get_conf(my_wxid, "wx_path")
 
-    all_file_path = os.path.join(wx_path, file_path)
-    if not os.path.exists(all_file_path):
+    all_file_path = AttachmentContext.join(wx_path, file_path)
+    if not AttachmentContext.exists(all_file_path):
         return ReJson(5002)
     file_name = os.path.basename(all_file_path)
     file_size = os.path.getsize(all_file_path)
@@ -308,12 +314,12 @@ def get_file(request: Request):
     if not my_wxid: return ReJson(1001, body="my_wxid is required")
     wx_path = gc.get_conf(my_wxid, "wx_path")
 
-    all_file_path = os.path.join(wx_path, file_path)
-    if not os.path.exists(all_file_path):
+    all_file_path = AttachmentContext.join(wx_path, file_path)
+    if not AttachmentContext.exists(all_file_path):
         return ReJson(5002)
 
     def file_iterator(file_path, chunk_size=8192):
-        with open(file_path, "rb") as f:
+        with AttachmentContext.open(file_path, "rb") as f:
             while True:
                 chunk = f.read(chunk_size)
                 if not chunk:
@@ -324,6 +330,58 @@ def get_file(request: Request):
         "Content-Disposition": f'attachment; filename*=UTF-8\'\'{quote(os.path.basename(all_file_path))}',
     }
     return StreamingResponse(file_iterator(all_file_path), media_type="application/octet-stream", headers=headers)
+
+
+@rs_api.get('/search/msgByQuery')
+def search(request: Request):
+    """
+    搜索
+    """
+    try:
+        query = request.query_params.get("query", "")
+        chatRomeId = request.query_params.get("chatRomeId", "wxid_0605816058212")
+        type = request.query_params.get("category", "")
+        page = request.query_params.get("page", 1)
+        pagesize = request.query_params.get("pagesize", 10)
+        msg_category = QueryMsgCategory[type]
+        if msg_category is None:
+            return ReJson(1002, body="category is required")
+
+
+        my_wxid = gc.get_conf(gc.at, "last")
+        if not my_wxid: return ReJson(1001, body="my_wxid is required")
+        db_config = gc.get_conf(my_wxid, "db_config")
+
+        db = DBHandler(db_config, my_wxid=my_wxid)
+        queryParm = MsgByQuery(chatRomeId=chatRomeId, page=page,
+                               page_size=pagesize, query_type=msg_category,
+                               query=query,)
+        return ok(db.search_by_query(queryParm))
+    except Exception as e:
+        logging.error(f"Error in search function: {str(e)}\n{traceback.format_exc()}")
+        return error9999(str(e))
+
+@rs_api.get('/search')
+def search(request: Request):
+    """
+    搜索
+    """
+    try:
+        query = request.query_params.get("query", "")
+        type = request.query_params.get("type", "")
+        page = request.query_params.get("page", 1)
+        pagesize = request.query_params.get("pagesize", 10)
+        if not query:
+            return ReJson(1002)
+        my_wxid = gc.get_conf(gc.at, "last")
+        if not my_wxid: return ReJson(1001, body="my_wxid is required")
+        db_config = gc.get_conf(my_wxid, "db_config")
+
+        db = DBHandler(db_config, my_wxid=my_wxid)
+        return ok(db.search_result(query, type, page, pagesize))
+    except Exception as e:
+        logging.error(f"Error in search function: {str(e)}\n{traceback.format_exc()}")
+        return error9999(str(e))
 
 
 # end 以上为聊天记录相关api *********************************************************************************************
@@ -348,7 +406,7 @@ def get_export_endb(request: ExportEndbRequest):
     wx_path = request.wx_path
     if not wx_path:
         wx_path = gc.get_conf(my_wxid, "wx_path")
-    if not os.path.exists(wx_path if wx_path else ""):
+    if not AttachmentContext.exists(wx_path if wx_path else ""):
         return ReJson(1002, body=f"wx_path is required: {wx_path}")
 
     # 分割wx_path的文件名和父目录
@@ -356,15 +414,15 @@ def get_export_endb(request: ExportEndbRequest):
     if not code:
         return ReJson(2001, body=wxdbpaths)
 
-    outpath = os.path.join(gc.work_path, "export", my_wxid, "endb")
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
+    outpath = AttachmentContext.join(gc.work_path, "export", my_wxid, "endb")
+    if not AttachmentContext.exists(outpath):
+        AttachmentContext.makedirs(outpath)
 
     for wxdb in wxdbpaths:
         # 复制wxdb->outpath, os.path.basename(wxdb)
         assert isinstance(outpath, str)  # 为了解决pycharm的警告, 无实际意义
         wxdb_path = wxdb.get("db_path")
-        shutil.copy(wxdb_path, os.path.join(outpath, os.path.basename(wxdb_path)))
+        shutil.copy(wxdb_path, AttachmentContext.join(outpath, os.path.basename(wxdb_path)))
     return ReJson(0, body=outpath)
 
 
@@ -395,12 +453,12 @@ def get_export_dedb(request: ExportDedbRequest):
         return ReJson(1002, body=f"key is required: {key}")
     if not wx_path:
         return ReJson(1002, body=f"wx_path is required: {wx_path}")
-    if not os.path.exists(wx_path):
+    if not AttachmentContext.exists(wx_path):
         return ReJson(1001, body=f"wx_path not exists: {wx_path}")
 
-    outpath = os.path.join(gc.work_path, "export", my_wxid, "dedb")
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
+    outpath = AttachmentContext.join(gc.work_path, "export", my_wxid, "dedb")
+    if not AttachmentContext.exists(outpath):
+        AttachmentContext.makedirs(outpath)
     assert isinstance(outpath, str)
     code, merge_save_path = decrypt_merge(wx_path=wx_path, key=key, outpath=outpath)
     time.sleep(1)
@@ -429,9 +487,9 @@ def get_export_csv(wxid: str = Body(..., embed=True)):
     # if not isinstance(start, int) or not isinstance(end, int) or start >= end:
     #     return ReJson(1002, body=f"datetime is required: {st_ed_time}")
 
-    outpath = os.path.join(gc.work_path, "export", my_wxid, "csv", wxid)
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
+    outpath = AttachmentContext.join(gc.work_path, "export", my_wxid, "csv", wxid)
+    if not AttachmentContext.exists(outpath):
+        AttachmentContext.makedirs(outpath)
 
     code, ret = export_csv(wxid, outpath, db_config, my_wxid=my_wxid)
     if code:
@@ -453,9 +511,9 @@ def get_export_json(wxid: str = Body(..., embed=True)):
     if not wxid:
         return ReJson(1002, body=f"username is required: {wxid}")
 
-    outpath = os.path.join(gc.work_path, "export", my_wxid, "json", wxid)
-    if not os.path.exists(outpath):
-        os.makedirs(outpath)
+    outpath = AttachmentContext.join(gc.work_path, "export", my_wxid, "json", wxid)
+    if not AttachmentContext.exists(outpath):
+        AttachmentContext.makedirs(outpath)
 
     code, ret = export_json(wxid, outpath, db_config, my_wxid=my_wxid)
     if code:
@@ -481,15 +539,15 @@ def get_export_html(wxid: str = Body(..., embed=True)):
     if not wxid:
         return ReJson(1002, body=f"username is required: {wxid}")
 
-    html_outpath = os.path.join(gc.work_path, "export", my_wxid, "html")
-    if not os.path.exists(html_outpath):
-        os.makedirs(html_outpath)
+    html_outpath = AttachmentContext.join(gc.work_path, "export", my_wxid, "html")
+    if not AttachmentContext.exists(html_outpath):
+        AttachmentContext.makedirs(html_outpath)
     assert isinstance(html_outpath, str)
-    outpath = os.path.join(html_outpath, wxid)
-    if os.path.exists(outpath):
+    outpath = AttachmentContext.join(html_outpath, wxid)
+    if AttachmentContext.exists(outpath):
         shutil.rmtree(outpath, ignore_errors=True)
     # 复制pywxdump/ui/web/*到outpath
-    web_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ui", "web")
+    web_path = AttachmentContext.join(AttachmentContext.dirname(AttachmentContext.dirname(__file__)), "ui", "web")
     shutil.copytree(web_path, outpath)
 
     code, ret = export_html(wxid, outpath, db_config, my_wxid=my_wxid)

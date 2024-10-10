@@ -15,18 +15,18 @@ import blackboxprotobuf
 
 class MicroHandler(DatabaseBase):
     _class_name = "MicroMsg"
-    Micro_required_tables = ["ContactLabel", "Contact", "ContactHeadImgUrl", "Session", "ChatInfo", "ChatRoom",
+    Micro_required_tables = ["ContactLabel", "Contact", "ContactHeadImgUrl", "MicroMsg__Session", "MicroMsg__ChatInfo", "ChatRoom",
                              "ChatRoomInfo"]
 
     def Micro_add_index(self):
         """
         添加索引, 加快查询速度
         """
-        # 为 Session 表添加索引
-        if self.tables_exist("Session"):
-            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_strUsrName_nTime ON Session(strUsrName, nTime);")
-            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_nOrder ON Session(nOrder);")
-            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_nTime ON Session(nTime);")
+        # 为 MicroMsg__Session 表添加索引
+        if self.tables_exist("MicroMsg__Session"):
+            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_strUsrName_nTime ON MicroMsg__Session(strUsrName, nTime);")
+            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_nOrder ON MicroMsg__Session(nOrder);")
+            self.execute("CREATE INDEX IF NOT EXISTS idx_Session_nTime ON MicroMsg__Session(nTime);")
 
         # 为 Contact 表添加索引
 
@@ -37,12 +37,12 @@ class MicroHandler(DatabaseBase):
         if self.tables_exist('ContactHeadImgUrl'):
             self.execute("CREATE INDEX IF NOT EXISTS idx_ContactHeadImgUrl_usrName ON ContactHeadImgUrl(usrName);")
 
-        # 为 ChatInfo 表添加索引
-        if self.tables_exist('ChatInfo'):
+        # 为 MicroMsg__ChatInfo 表添加索引
+        if self.tables_exist('MicroMsg__ChatInfo'):
             self.execute("CREATE INDEX IF NOT EXISTS idx_ChatInfo_Username_LastReadedCreateTime "
-                         "ON ChatInfo(Username, LastReadedCreateTime);")
+                         "ON MicroMsg__ChatInfo(Username, LastReadedCreateTime);")
             self.execute(
-                "CREATE INDEX IF NOT EXISTS idx_ChatInfo_LastReadedCreateTime ON ChatInfo(LastReadedCreateTime);")
+                "CREATE INDEX IF NOT EXISTS idx_ChatInfo_LastReadedCreateTime ON MicroMsg__ChatInfo(LastReadedCreateTime);")
 
         # 为 Contact 表添加复合索引
         if self.tables_exist('Contact'):
@@ -81,15 +81,15 @@ class MicroHandler(DatabaseBase):
         :return: 会话列表
         """
         sessions = {}
-        if not self.tables_exist(["Session", "Contact", "ContactHeadImgUrl"]):
+        if not self.tables_exist(["MicroMsg__Session", "Contact", "ContactHeadImgUrl"]):
             return sessions
         sql = (
             "SELECT S.strUsrName,S.nOrder,S.nUnReadCount, S.strNickName, S.nStatus, S.nIsSend, S.strContent, "
             "S.nMsgLocalID, S.nMsgStatus, S.nTime, S.nMsgType, S.Reserved2 AS nMsgSubType, C.UserName, C.Alias, "
             "C.DelFlag, C.Type, C.VerifyFlag, C.Reserved1, C.Reserved2, C.Remark, C.NickName, C.LabelIDList, "
             "C.ChatRoomType, C.ChatRoomNotify, C.Reserved5, C.Reserved6 as describe, C.ExtraBuf, H.bigHeadImgUrl "
-            "FROM (SELECT strUsrName, MAX(nTime) AS MaxnTime FROM Session GROUP BY strUsrName) AS SubQuery "
-            "JOIN Session S ON S.strUsrName = SubQuery.strUsrName AND S.nTime = SubQuery.MaxnTime "
+            "FROM (SELECT strUsrName, MAX(nTime) AS MaxnTime FROM MicroMsg__Session GROUP BY strUsrName) AS SubQuery "
+            "JOIN MicroMsg__Session S ON S.strUsrName = SubQuery.strUsrName AND S.nTime = SubQuery.MaxnTime "
             "left join Contact C ON C.UserName = S.strUsrName "
             "LEFT JOIN ContactHeadImgUrl H ON C.UserName = H.usrName "
             "WHERE S.strUsrName!='@publicUser' "
@@ -131,13 +131,13 @@ class MicroHandler(DatabaseBase):
         :return: 最近聊天的联系人
         """
         users = []
-        if not self.tables_exist(["ChatInfo"]):
+        if not self.tables_exist(["MicroMsg__ChatInfo"]):
             return users
         sql = (
             "SELECT A.Username, LastReadedCreateTime, LastReadedSvrId "
-            "FROM (   SELECT Username, MAX(LastReadedCreateTime) AS MaxLastReadedCreateTime  FROM ChatInfo "
+            "FROM (   SELECT Username, MAX(LastReadedCreateTime) AS MaxLastReadedCreateTime  FROM MicroMsg__ChatInfo "
             "WHERE LastReadedCreateTime IS NOT NULL AND LastReadedCreateTime > 1007911408000   GROUP BY Username "
-            ") AS SubQuery JOIN ChatInfo A "
+            ") AS SubQuery JOIN MicroMsg__ChatInfo A "
             "ON A.Username = SubQuery.Username AND LastReadedCreateTime = SubQuery.MaxLastReadedCreateTime "
             "ORDER BY A.LastReadedCreateTime DESC;"
         )

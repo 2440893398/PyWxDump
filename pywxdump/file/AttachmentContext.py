@@ -1,9 +1,11 @@
 import os
-from datetime import datetime
+import typing
 from typing import AnyStr, Callable, Union, IO
-from flask import send_file, Response
+from urllib.parse import quote
 
-from pywxdump.common.config.oss_config.s3_config import S3Config
+from starlette.background import BackgroundTask
+from starlette.responses import FileResponse, Response, StreamingResponse
+
 from pywxdump.common.config.oss_config_manager import OSSConfigManager
 from pywxdump.file.Attachment import Attachment
 from pywxdump.file.LocalAttachment import LocalAttachment
@@ -39,7 +41,7 @@ def exists(path: str) -> bool:
     return determine_strategy(path).exists(path)
 
 
-def open_file(path: str, mode: str) -> IO:
+def open(path: str, mode: str) -> IO:
     """
     打开一个文件并返回文件对象。
 
@@ -107,40 +109,45 @@ def basename(path: str) -> str:
 
 
 def send_attachment(
-        path_or_file: Union[os.PathLike[AnyStr], str],
-        mimetype: Union[str, None] = None,
-        as_attachment: bool = False,
-        download_name: Union[str, None] = None,
-        conditional: bool = True,
-        etag: Union[bool, str] = True,
-        last_modified: Union[datetime, int, float, None] = None,
-        max_age: Union[None, int, Callable[[Union[str, None]], Union[int, None]]] = None,
+        path: str | os.PathLike[str],
+        status_code: int = 200,
+        headers: typing.Mapping[str, str] | None = None,
+        media_type: str | None = None,
+        background: BackgroundTask | None = None,
+        filename: str | None = None,
 ) -> Response:
     """
-    发送附件文件。
+    发送文件。
 
     参数:
-    path_or_file (Union[os.PathLike[AnyStr], str]): 文件路径或文件对象。
-    mimetype (Union[str, None]): 文件的MIME类型。
-    as_attachment (bool): 是否作为附件下载。
-    download_name (Union[str, None]): 下载时的文件名。
-    conditional (bool): 是否使用条件请求。
-    etag (Union[bool, str]): ETag值。
-    last_modified (Union[datetime, int, float, None]): 最后修改时间。
-    max_age (Union[None, int, Callable[[Union[str, None]], Union[int, None]]]): 缓存最大时间。
+    path (str): 文件路径。
+    status_code (int): HTTP 状态码。
+    headers (Mapping[str, str]): HTTP 头。
+    media_type (str): MIME 类型。
+    background (BackgroundTask): 后台任务。
+    filename (str): 文件名。
 
     返回:
-    Response: Flask的响应对象。
+    Response: 响应。
     """
-    file_io = open_file(path_or_file, "rb")
+    file_io = open(path, "rb")
 
-    # 如果没有提供 download_name 或 mimetype，则从 path_or_file 中获取文件名和 MIME 类型
-    if download_name is None:
-        download_name = basename(path_or_file)
-    if mimetype is None:
-        mimetype = 'application/octet-stream'
+    if filename is None:
+        filename = basename(path)
 
-    return send_file(file_io, mimetype, as_attachment, download_name, conditional, etag, last_modified, max_age)
+    if media_type is None:
+        media_type = "application/octet-stream"
+
+    if headers is None:
+        headers = {
+            "Content-Disposition": f'attachment; filename*=UTF-8\'\'{quote(filename)}',
+        }
+    else:
+        headers = dict(headers)  # 将 Mapping 转换为可变的字典
+        headers["Content-Disposition"] = f'attachment; filename*=UTF-8\'\'{quote(filename)}'
+
+    return StreamingResponse(content=file_io, status_code=status_code, headers=headers, media_type=media_type,
+                             background=background)
 
 
 def download_file(db_path, local_path):
@@ -155,7 +162,7 @@ def download_file(db_path, local_path):
     str: 本地文件路径。
     """
     with open(local_path, 'wb') as f:
-        with open_file(db_path, 'rb') as r:
+        with open(db_path, 'rb') as r:
             f.write(r.read())
     return local_path
 
@@ -185,4 +192,3 @@ def getsize(path: str):
     int: 文件大小
     """
     return determine_strategy(path).getsize(path)
-

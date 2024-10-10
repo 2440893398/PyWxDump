@@ -12,5 +12,41 @@ from .ctypes_utils import get_process_list, get_memory_maps, get_process_exe_pat
 from .memory_search import search_memory
 from ._loger import wx_core_loger
 
-CORE_DB_TYPE = ["MicroMsg", "MSG", "MediaMSG", "OpenIMContact", "OpenIMMsg", "PublicMsg", "OpenIMMedia",
-                "Favorite", "Sns"]
+CORE_DB_TYPE = [
+    "PublicMsgMedia",
+    "Misc",
+    "MSG",
+    "MediaMSG",
+    "FTSMSG",
+    "Voip",
+    "SyncMsg",
+    "StoreEmotion",
+    "Sns",
+    "PublicMsg",
+    "PreDownload",
+    "OpenIMResource",
+    "OpenIMMsg",
+    "OpenIMMedia",
+    "OpenIMContact",
+    "NewTips",
+    "MultiSearchChatMsg",
+    "MicroMsg",
+    "Media",
+    "LinkHistory",
+    "ImageTranslate",
+    "HardLinkVideo",
+    "HardLinkImage",
+    "HardLinkFile",
+    "FunctionMsg",
+    "FTSFavorite",
+    "FTSContact",
+    "Favorite",
+    "Emotion",
+    "CustomerService",
+    "ClientConfig",
+    "ChatRoomUser",
+    "ChatMsg",
+    "BizChatMsg",
+    "BizChat",
+    "ClientGeneral"
+]

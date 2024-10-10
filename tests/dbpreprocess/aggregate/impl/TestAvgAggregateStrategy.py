@@ -19,7 +19,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(salary) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -32,7 +32,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(salary) AS average_salary FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Select).expressions[0]
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -43,11 +43,11 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(salary), AVG(age) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Select).expressions[0]
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.strategy.aggregateField = tree.find(Select).expressions[1]
-        select = self.strategy.sqlPreprocessing(select)
+        select = self.strategy.sql_preprocessing(select)
         select = select.find(Select)
 
         self.assertEqual(len(select.expressions), 6)
@@ -60,7 +60,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT name, AVG(salary), department FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 5)
@@ -71,7 +71,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT department, AVG(salary) FROM employees GROUP BY department"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 4)
@@ -82,7 +82,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT department, AVG(salary) FROM employees GROUP BY department HAVING AVG(salary) > 50000"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 4)
@@ -93,7 +93,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT department, AVG(salary) FROM employees GROUP BY department ORDER BY AVG(salary)"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 4)
@@ -104,7 +104,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(DISTINCT salary) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -117,7 +117,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(CASE WHEN department = 'IT' THEN salary ELSE 0 END) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -128,7 +128,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(COALESCE(salary, 0)) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -139,7 +139,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT AVG(salary + bonus) FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 3)
@@ -150,7 +150,7 @@ class TestAvgAggregateStrategy(unittest.TestCase):
         sql = "SELECT name, salary FROM employees"
         tree = parse_one(sql)
         self.strategy.aggregateField = tree.find(Avg)
-        processed_tree = self.strategy.sqlPreprocessing(tree)
+        processed_tree = self.strategy.sql_preprocessing(tree)
         select = processed_tree.find(Select)
 
         self.assertEqual(len(select.expressions), 2)

@@ -16,7 +16,6 @@ from pywxdump.common.config.oss_config.storage_config import DescriptionBuilder
 from pywxdump.common.config.oss_config.storage_config_factory import StorageConfigFactory
 from pywxdump.common.config.oss_config_manager import OSSConfigManager
 from pywxdump.common.config.server_config import ServerConfig
-from pywxdump.common.constants import VERSION_LIST_PATH
 from pywxdump.file import AttachmentContext
 
 wxdump_ascii = r"""
@@ -311,7 +310,7 @@ class MainShowChatRecords(BaseSubMainClass):
         if not self._dbshow_parameter_check(start_config):
             return
 
-        start_falsk(start_config)
+        start_server(start_config)
 
     def _dbshow_parameter_check(self, server_config) -> bool:
         # (merge)和(msg_path,micro_path,media_path) 二选一
@@ -327,9 +326,8 @@ class MainShowChatRecords(BaseSubMainClass):
         # 从命令行参数获取值
         if not AttachmentContext.exists(server_config.merge_path):
             print("[-] 输入数据库路径不存在")
-            return
 
-        start_server(merge_path=merge_path, wx_path=args.wx_path, my_wxid=args.my_wxid, online=online)
+        start_server(server_config)
 
 
 class MainExportChatRecords(BaseSubMainClass):
@@ -385,7 +383,7 @@ class MainUi(BaseSubMainClass):
         server_config.port(port)
         server_config.online(online)
 
-        start_server(port=port, online=online, debug=debug, isopenBrowser=isopenBrowser)
+        start_server(server_config)
 
 
 class MainApi(BaseSubMainClass):
@@ -412,7 +410,7 @@ class MainApi(BaseSubMainClass):
         server_config.is_open_browser(False)
         server_config.online(online)
 
-        start_server(port=port, online=online, debug=debug, isopenBrowser=False)
+        start_server(server_config)
 
 
 def console_run():

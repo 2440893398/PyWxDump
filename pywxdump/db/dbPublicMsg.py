@@ -6,7 +6,7 @@
 # Date:         2024/07/03
 # -------------------------------------------------------------------------------
 from .dbMSG import MsgHandler
-from .utils import db_error
+from .utils import db_error, msg_utils
 
 
 class PublicMsgHandler(MsgHandler):
@@ -40,10 +40,10 @@ class PublicMsgHandler(MsgHandler):
             wxids = [wxids]
         if wxids:
             wxids = "('" + "','".join(wxids) + "')"
-            sql = f"SELECT StrTalker, COUNT(*) FROM PublicMsg WHERE StrTalker IN {wxids} GROUP BY StrTalker ORDER BY COUNT(*) DESC;"
+            sql = f"SELECT StrTalker, COUNT(*) FROM PublicMsg WHERE StrTalker IN {wxids} GROUP BY StrTalker ;"
         else:
-            sql = f"SELECT StrTalker, COUNT(*) FROM PublicMsg GROUP BY StrTalker ORDER BY COUNT(*) DESC;"
-        sql_total = f"SELECT COUNT(*) FROM MSG;"
+            sql = f"SELECT StrTalker, COUNT(*) FROM PublicMsg GROUP BY StrTalker ;"
+        sql_total = f"SELECT COUNT(*) FROM MSG__MSG;"
 
         result = self.execute(sql)
         total_ret = self.execute(sql_total)
@@ -59,12 +59,13 @@ class PublicMsgHandler(MsgHandler):
         return msg_count
 
     @db_error
-    def get_plc_msg_list(self, wxids: list or str = "", start_index=0, page_size=500, msg_type: str = "",
+    def get_plc_msg_list(self, wxids: list or str = "", start_index=0, direction = "down",page_size=500, msg_type: str = "",
                          msg_sub_type: str = "", start_createtime=None, end_createtime=None, my_talker="我"):
         """
         获取聊天记录列表
         :param wxids: [wxid]
         :param start_index: 起始索引
+        :param direction: 查询方向 down or up
         :param page_size: 页大小
         :param msg_type: 消息类型
         :param msg_sub_type: 消息子类型
@@ -106,7 +107,7 @@ class PublicMsgHandler(MsgHandler):
         if not result:
             return [], []
 
-        result_data = (self.get_msg_detail(row, my_talker=my_talker) for row in result)
+        result_data = (msg_utils.get_msg_detail(row, my_talker=my_talker) for row in result)
         rdata = list(result_data)  # 转为列表
         wxid_list = {d['talker'] for d in rdata}  # 创建一个无重复的 wxid 列表
 

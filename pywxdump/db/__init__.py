@@ -5,6 +5,11 @@
 # Author:       xaoyaoo
 # Date:         2024/04/15
 # -------------------------------------------------------------------------------
+from typing import Dict, Any
+
+from .fts.impl.parsingFTSMsg import ParsingFTSMsg
+from .fts.parsingFTS import FTSType
+from .fts.parsingFTSFactroy import ParsingFTSFactory
 from .utils import download_file, dat2img
 
 from .dbFavorite import FavoriteHandler
@@ -27,10 +32,10 @@ class DBHandler(MicroHandler, MediaHandler, OpenIMContactHandler, PublicMsgHandl
 
         super().__init__(self.config)
         # 加速查询索引
-        self.Micro_add_index()
-        self.Msg_add_index()
-        self.PublicMsg_add_index()
-        self.Media_add_index()
+        # self.Micro_add_index()
+        # self.Msg_add_index()
+        # self.PublicMsg_add_index()
+        # self.Media_add_index()
 
     def get_user(self, word=None, wxids=None, labels=None):
         """
@@ -44,12 +49,14 @@ class DBHandler(MicroHandler, MediaHandler, OpenIMContactHandler, PublicMsgHandl
         users.update(self.get_im_user_list(word=word, wxids=wxids))
         return users
 
-    def get_msgs(self, wxids: list or str = "", start_index=0, page_size=500, msg_type: str = "",
+    def get_msgs(self, wxids: list or str = "", start_index=0, page_size=500, direction: str = "down",
+                 msg_type: str = "",
                  msg_sub_type: str = "", start_createtime=None, end_createtime=None):
         """
         获取聊天记录列表
         :param wxids:[ wxid]
         :param start_index: 起始索引
+        :param direction: 查询方向 down or up
         :param page_size: 页大小
         :param msg_type: 消息类型
         :param msg_sub_type: 消息子类型
@@ -59,12 +66,12 @@ class DBHandler(MicroHandler, MediaHandler, OpenIMContactHandler, PublicMsgHandl
                     "talker": talker, "room_name": StrTalker, "msg": msg, "src": src, "extra": {},
                     "CreateTime": CreateTime, }
         """
-        msgs0, wxid_list0 = self.get_msg_list(wxids=wxids, start_index=start_index, page_size=page_size,
-                                              msg_type=msg_type,
+        msgs0, wxid_list0 = self.get_msg_list(wxids=wxids, start_index=start_index, direction=direction,
+                                              page_size=page_size, msg_type=msg_type,
                                               msg_sub_type=msg_sub_type, start_createtime=start_createtime,
                                               end_createtime=end_createtime, my_talker=self.my_wxid)
-        msgs1, wxid_list1 = self.get_plc_msg_list(wxids=wxids, start_index=start_index, page_size=page_size,
-                                                  msg_type=msg_type,
+        msgs1, wxid_list1 = self.get_plc_msg_list(wxids=wxids, start_index=start_index, direction=direction,
+                                                  page_size=page_size, msg_type=msg_type,
                                                   msg_sub_type=msg_sub_type, start_createtime=start_createtime,
                                                   end_createtime=end_createtime, my_talker=self.my_wxid)
         msgs = msgs0 + msgs1
@@ -72,6 +79,28 @@ class DBHandler(MicroHandler, MediaHandler, OpenIMContactHandler, PublicMsgHandl
 
         users = self.get_user(wxids=wxid_list)
         return msgs, users
+
+    def search_result(self, query: str, type: str, page=1, pagesize=10) -> dict[Any, Any]:
+        result = {}
+        for key, subclass in ParsingFTSFactory.registry.items():
+            ftsSearch = subclass(self.config)
+            if type and type != key.value:
+                continue
+            search_result = ftsSearch.search(query, int(page), int(pagesize))
+            result[key.value] = search_result.dict()
+
+        return result
+
+    def search_by_query(self, queryParm):
+        """
+        搜索聊天记录
+        :param queryParm: 搜索参数
+        :return: 搜索结果
+        """
+
+        ftsMsg = ParsingFTSMsg(self.config)
+        search_result = ftsMsg.multiDimensionalSearch(queryParm)
+        return search_result
 
     def get_msgs_count(self, wxids: list = ""):
         chat_count = self.get_m_msg_count(wxids)

@@ -31,7 +31,7 @@ class TestGroupConcatAggregateStrategy(unittest.TestCase):
         row2 = self.create_row([30, "Bob"])
 
         self.strategy.aggregateFieldIndex = 1  # name 字段的索引
-        self.strategy.getRowKey = lambda row: str(row[0])  # 使用 age 作为 key
+        self.strategy.get_row_key = lambda row: str(row[0])  # 使用 age 作为 key
 
         self.strategy.aggregate(aggregated_results, row2)
 
@@ -52,7 +52,7 @@ class TestGroupConcatAggregateStrategy(unittest.TestCase):
         row2 = self.create_row([30, "Bob"])
 
         self.strategy.aggregateFieldIndex = 1
-        self.strategy.getRowKey = lambda row: str(row[0])
+        self.strategy.get_row_key = lambda row: str(row[0])
 
         self.strategy.aggregate(aggregated_results, row2)
 

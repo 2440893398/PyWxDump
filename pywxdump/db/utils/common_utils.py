@@ -61,7 +61,7 @@ def type_converter(type_id_or_name: [str, tuple]):
         (49, 3): "(分享)音乐",
         (49, 4): "(分享)卡片式链接",
         (49, 5): "(分享)卡片式链接",
-        (49, 6): "文件",
+        (49, 6): "文件6",
         (49, 7): "游戏相关",
         (49, 8): "用户上传的GIF表情",
         (49, 15): "未知-49,15",
@@ -174,7 +174,7 @@ def dat2img(input_data):
     }
 
     if isinstance(input_data, str):
-        with AttachmentContext.open_file(input_data, "rb") as f:
+        with AttachmentContext.open(input_data, "rb") as f:
             input_bytes = f.read()
     else:
         input_bytes = input_data
@@ -273,7 +273,7 @@ def download_file(url, save_path=None, proxies=None):
         # 创建文件夹
         if not AttachmentContext.exists(AttachmentContext.dirname(save_path)):
             AttachmentContext.makedirs(AttachmentContext.dirname(save_path))
-        with AttachmentContext.open_file(save_path, "wb") as f:
+        with AttachmentContext.open(save_path, "wb") as f:
             f.write(data)
     return data
 
